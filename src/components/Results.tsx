@@ -92,8 +92,8 @@ export default function ResultTab(){
                             ))}
                         </select>
                         <div className="flex space-x-2 w-4/5">
-                            <button className="border p-1 bg-lime-500 rounded-md w-1/2 shadow-md font-bold">Export</button>
-                            <button className="border p-1 bg-orange-500 rounded-md w-1/2 shadow-md font-bold" onClick={handleDelete}>DELETE</button>
+                            <button className="border p-1 bg-lime-500 rounded-md w-1/2 shadow-md font-bold opacity-50" disabled={true}>Export</button>
+                            <button className="border p-1 bg-orange-500 rounded-md w-1/2 shadow-md font-bold hover:scale-105 cursor-pointer" onClick={handleDelete}>DELETE</button>
                         </div>
                     </div>
                     <div className="w-1/4 flex flex-col ps-5 justify-center min-h-full text-[0.85vw]">

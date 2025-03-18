@@ -122,8 +122,8 @@ export default function SimuSetupCard(){
                             <tbody>
                                 {Object.entries(data).map(([key, value], rowIndex) => ( 
                                 <tr key={rowIndex} className="border-b border-gray-600 text-center">
-                                    <td className="px-3 py-2 font-bold cursor-help" title={getLegen(key)}>{key}</td>
-                                    <td className={`px-3 py-2 ${typeof value === "number" ? "text-blue-600 font-semibold" : "font-bold"}`}>
+                                    <td className="px-3 py-[1vh] font-bold cursor-help" title={getLegen(key)}>{key}</td>
+                                    <td className={`px-3 py-[1vh] ${typeof value === "number" ? "text-blue-600 font-semibold" : "font-bold"}`}>
                                     {value? (Math.abs(value) < 0.001 || Math.abs(value) > 1_000 ? value.toExponential(2) :value.toFixed(4)):0}
                                     </td>
                                 </tr>

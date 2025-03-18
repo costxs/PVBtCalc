@@ -7,7 +7,7 @@ export const fetchCurve = createAsyncThunk("curve/fetch", async (_, {getState}) 
     const setupEntries = Object.entries(setup);
     // Removendo o primeiro e o último item
     const filteredSetup = Object.fromEntries(setupEntries.slice(1, -1));
-    const response = await fetch("http://127.0.0.1:8000/pvbtcurve", {
+    const response = await fetch("https://pvbtcalcapi-production.up.railway.app/pvbtcurve", {
       method: "POST",
       headers: {
         "Content-Type": "application/json", // Informar que estamos enviando JSON

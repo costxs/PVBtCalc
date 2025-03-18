@@ -9,7 +9,7 @@ const Sidebar = () => {
 
       <div className="justify-items-center mb-2 mt-10">
         <img src="src\assets\brasao.png" className="max-w-32" alt="" />
-        <div className="my-5 flex flex-col">
+        <div className="my-[2vh] flex flex-col">
             <span className="font-bold text-3xl">PVBtCalc</span>
             <img src="src\assets\PVBtCalcLogo.png" alt="" />
         </div>
@@ -18,18 +18,18 @@ const Sidebar = () => {
       {/* Links do Menu */}
       <div className="flex flex-col gap-10 mt-10">
         <a href="#" className="flex items-center gap-4 text-gray-700 hover:text-gray-900">
-          <GrTest size={'2vw'} />
-          <span className="font-bold">Runner</span>
+          <GrTest size={'2vw'} className="text-blue-700"/>
+          <span className="font-bold text-blue-700">Runner</span>
         </a>
-        <a href="#" className="flex items-center gap-4 text-gray-700 hover:text-gray-900">
+        <a href="#" className="flex pointer-events-none opacity-60 items-center gap-4 text-gray-700 hover:text-gray-900">
           <BiSolidFileExport  size={'2vw'} />
           <span className="font-bold">Export</span>
         </a>
-        <a href="#" className="flex items-center gap-4 text-gray-700 hover:text-gray-900">
+        <a href="#" className="flex pointer-events-none opacity-60 items-center gap-4 text-gray-700 hover:text-gray-900">
           <BiSolidFileImport size={'2vw'} />
           <span className="font-bold">Import</span>
         </a>
-        <a href="#" className="flex items-center gap-4 text-gray-700 hover:text-gray-900">
+        <a href="#" className="flex pointer-events-none opacity-60 items-center gap-4 text-gray-700 hover:text-gray-900">
           <FaChartBar size={'2vw'} />
           <span className="font-bold">Tests Details</span>
         </a>
