@@ -11,7 +11,7 @@ const Sidebar = () => {
         <img src="src\assets\brasao.png" className="max-w-32" alt="" />
         <div className="my-[2vh] flex flex-col">
             <span className="font-bold text-3xl">PVBtCalc</span>
-            <img src="src\assets\PVBtCalcLogo.png" alt="" />
+            <img src="\PVBtCalcLogo.png" alt="" />
         </div>
       </div>
 
