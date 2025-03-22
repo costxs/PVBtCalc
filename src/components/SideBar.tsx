@@ -1,9 +1,14 @@
 import {FaChartBar} from "react-icons/fa";
 import { BiSolidFileImport, BiSolidFileExport  } from "react-icons/bi";
 import { GrTest } from "react-icons/gr";
+import { useDispatch } from "react-redux";
+import {logout} from "../redux/user/slice"
 
 const Sidebar = () => {
-
+  const dispatch = useDispatch()
+  const handleLogout = () =>{
+      dispatch(logout())
+  }
   return (
     <div className={`flex flex-col bg-sky-200 shadow-md border-r border-gray-300  p-4 transition-all duration-300 h-full min-w-[10vw] max-w-[10vw]`}>
 
@@ -33,6 +38,9 @@ const Sidebar = () => {
           <FaChartBar size={'2vw'} />
           <span className="font-bold">Tests Details</span>
         </a>
+        <div className="w-full flex justify-center">
+          <button className="bg-amber-500 p-1 rounded shadow-md cursor-pointer hover:scale-105" onClick={handleLogout}>LOGOUT</button>
+        </div>
       </div>
       <div className="flex flex-col items-center justify-center space-y-[2vh] mt-[5vh]">
         <div className="flex">

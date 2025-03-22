@@ -4,12 +4,14 @@ import { RootState } from "../store";
 export const fetchCurve = createAsyncThunk("curve/fetch", async (_, {getState}) => {
     const state = getState() as RootState
     const setup = state.setup
+    const token = state.user.token
     const setupEntries = Object.entries(setup);
     // Removendo o primeiro e o último item
     const filteredSetup = Object.fromEntries(setupEntries.slice(1, -1));
     const response = await fetch("https://pvbtcalcapi-production.up.railway.app/pvbtcurve", {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json", // Informar que estamos enviando JSON
       },
       body: JSON.stringify(filteredSetup),
