@@ -16,13 +16,13 @@ export default function ResultTab(){
     const [acid, setAcid] = useState('');
     const [rock, setRock] = useState('');
     const [data, setData] = useState({
-        'q0':[0],
+        'q0 (cm³/min)':[0],
         'PVBt':[0],
-        'iv':[0],
+        'iv (m/s)':[0],
         '1/Da':[0],
-        'wv':[0],
-        'vbt':[0],
-        'tbt':[0],
+        'wv (m/s)':[0],
+        'vbt (cm³)':[0],
+        'tbt (s)':[0],
         'dv':[0]
     })
     const handleCurve = (id: any) => {
@@ -39,13 +39,13 @@ export default function ResultTab(){
     useEffect(()=>{
         if (!curves.length){
             setData({
-                'q0':[0],
+                'q0 (cm³/min)':[0],
                 'PVBt':[0],
-                'iv':[0],
+                'iv (m/s)':[0],
                 '1/Da':[0],
-                'wv':[0],
-                'vbt':[0],
-                'tbt':[0],
+                'wv (m/s)':[0],
+                'vbt (cm³)':[0],
+                'tbt (s)':[0],
                 'dv':[0]
             });
             setAcid('');
@@ -53,17 +53,41 @@ export default function ResultTab(){
         }
     },[curves]);
 
+    const getLegen = (key: string)=>{
+        switch(key){
+            case('q0 (cm³/min)'):
+                return 'flowrate (cm³/min)';
+            case('PVBt'):
+                return 'Pore Volume to Breakthrough (dimensionless)';
+            case('iv (m/s)'):
+                return 'Intersticial Velocity (m/s)';
+            case('1/Da'):
+                return 'Damkholer Number Inverse (dimensionless)';
+            case('wv (m/s)'):
+                return 'Fluid Velocity in the Wormhole (m/s)';
+            case('vbt (cm³)'):
+                return 'Acid Volume to Breakthrough (cm³)';
+            case('tbt (s)'):
+                return 'Time to Breakthrough (s)';
+            case('dv'):
+                return 'Darcy Velocity (m/s)';
+            default: 
+                return ''
+
+        }
+    }
+
     useEffect(()=>{
         
         if(curve){
             setData({
-                'q0':(curve as any).flowratePoints,
+                'q0 (cm³/min)':(curve as any).flowratePoints,
                 'PVBt':(curve as any).pvbtPoints,
-                'iv':(curve as any).intersticialVelocity,
+                'iv (m/s)':(curve as any).intersticialVelocity,
                 '1/Da':(curve as any).iDa,
-                'wv':(curve as any).wormholeVelocity,
-                'vbt':(curve as any).volumeToBt,
-                'tbt':(curve as any).timeToBt,
+                'wv (m/s)':(curve as any).wormholeVelocity,
+                'vbt (cm³)':(curve as any).volumeToBt,
+                'tbt (s)':(curve as any).timeToBt,
                 'dv':(curve as any).darcyVelocity
         
             });
@@ -122,7 +146,7 @@ export default function ResultTab(){
                             <thead>
                             <tr className="bg-gray-300">
                                 {headers.map((header, index) => (
-                                <th key={index} className="border border-gray-700 px-3 py-2 text-center">
+                                <th key={index} title={getLegen(header)} className="border cursor-help border-gray-700 px-3 py-2 text-center">
                                     {header}
                                 </th>
                                 ))}
@@ -132,8 +156,8 @@ export default function ResultTab(){
                             {[...Array(numRows)].map((_, rowIndex) => (
                                 <tr key={rowIndex} className={`text-center ${(rowIndex === minPVBtIndex) && rowIndex != 0 ? 'bg-yellow-300 font-bold':''}`}>
                                 {headers.map((header, cellIndex) => (
-                                    <td key={cellIndex} className="border border-gray-500 px-3 py-2">
-                                    {Math.abs((data as any)[header][rowIndex]) < 0.01 || Math.abs((data as any)[header][rowIndex]) > 1_000 ? (data as any)[header][rowIndex].toExponential(2) :(data as any)[header][rowIndex].toFixed(3)}
+                                    <td key={cellIndex} title={getLegen(header)} className="border cursor-help border-gray-500 px-3 py-2">
+                                    {Math.abs((data as any)[header][rowIndex]) < 0.01 && Math.abs((data as any)[header][rowIndex]) > 0 || Math.abs((data as any)[header][rowIndex]) > 1_000 ? (data as any)[header][rowIndex].toExponential(2) :((data as any)[header][rowIndex] != 0) ? (data as any)[header][rowIndex].toFixed(3): (data as any)[header][rowIndex]}
                                     </td>
                                 ))}
                                 </tr>

@@ -1,4 +1,3 @@
-import {FaChartBar} from "react-icons/fa";
 import { BiSolidFileImport, BiSolidFileExport  } from "react-icons/bi";
 import { GrTest } from "react-icons/gr";
 import { useDispatch } from "react-redux";
@@ -33,10 +32,6 @@ const Sidebar = () => {
         <a href="#" className="flex pointer-events-none opacity-60 items-center gap-4 text-gray-700 hover:text-gray-900">
           <BiSolidFileImport size={'2vw'} />
           <span className="font-bold">Import</span>
-        </a>
-        <a href="#" className="flex pointer-events-none opacity-60 items-center gap-4 text-gray-700 hover:text-gray-900">
-          <FaChartBar size={'2vw'} />
-          <span className="font-bold">Tests Details</span>
         </a>
         <div className="w-full flex justify-center">
           <button className="bg-amber-500 p-1 rounded shadow-md cursor-pointer hover:scale-105" onClick={handleLogout}>LOGOUT</button>

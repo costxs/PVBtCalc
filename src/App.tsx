@@ -29,7 +29,7 @@ function App() {
                     <SimuSetupCard/>
                   </div>
                 </div>
-                <div className="h-[45%] flex bg-slate-400 divide-x p-2 rounded opacity-40 pointer-events-none" aria-disabled={true}>
+                <div className="h-[45%] flex bg-slate-400 divide-x p-2 rounded">
                   <ExpSection/>
                   <OptimalAnalysis/>
                 </div>

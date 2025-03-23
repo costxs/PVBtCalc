@@ -5,7 +5,7 @@ import { fetchCurve, setId, setSystem } from "../redux/results/slice";
 import { addCurve } from "../redux/storageresults/slice";
 import { fetchParam } from "../redux/parameters/slice";
 import { useEffect } from "react";
-import { RxCursorArrow } from "react-icons/rx";
+import { FcCursor } from "react-icons/fc";
 export default function SimuSetupCard(){
     
     const getLegen = (key: string)=>{
@@ -19,11 +19,11 @@ export default function SimuSetupCard(){
             case('n'):
                 return 'Enhanced Permeability Area Factor';
             case('a'):
-                return 'Enhanced Permeability Zone Flow Coefficient';
+                return 'Enhanced Permeability Zone Flow Coefficient, m²⁻²ⁿ';
             case('b'):
-                return 'Wormhole Flow Coefficient';
+                return 'Wormhole Flow Coefficient, s/m';
             case('k0'):
-                return 'Mass Transfer Coefficient Static Constant';
+                return 'Mass Transfer Coefficient Static Constant, 1/m²';
             default: 
                 return ''
 
@@ -132,7 +132,7 @@ export default function SimuSetupCard(){
                         </table>
                     </div>
                     <div>
-                        <p className="text-[0.7vw] pt-[1vh] text-center">for more information on the description of variables, position the cursor <RxCursorArrow className="inline"/> over them</p><div></div>                
+                        <p className="text-[0.7vw] pt-[1vh] text-center">for more information on the description of variables, position the cursor <FcCursor className="inline text-white text-[1.4vw]"/> over them</p><div></div>                
                     </div>
                 </div>
             </div>
