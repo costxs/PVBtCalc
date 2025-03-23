@@ -154,7 +154,7 @@ export default function ResultTab(){
                             </thead>
                             <tbody>
                             {[...Array(numRows)].map((_, rowIndex) => (
-                                <tr key={rowIndex} className={`text-center ${(rowIndex === minPVBtIndex) && rowIndex != 0 ? 'bg-yellow-300 font-bold':''}`}>
+                                <tr key={rowIndex} className={`text-center ${(rowIndex === minPVBtIndex) && rowIndex != 0 ? 'bg-green-400 font-bold':''}`}>
                                 {headers.map((header, cellIndex) => (
                                     <td key={cellIndex} title={getLegen(header)} className="border cursor-help border-gray-500 px-3 py-2">
                                     {Math.abs((data as any)[header][rowIndex]) < 0.01 && Math.abs((data as any)[header][rowIndex]) > 0 || Math.abs((data as any)[header][rowIndex]) > 1_000 ? (data as any)[header][rowIndex].toExponential(2) :((data as any)[header][rowIndex] != 0) ? (data as any)[header][rowIndex].toFixed(3): (data as any)[header][rowIndex]}

@@ -1,7 +1,7 @@
 export default function OptimalAnalysis(){
     return(
         <>
-            <div className="w-full h-full bg-slate-400 rounded-sm p-[0.6vw] flex flex-col justify-between">
+            <div className="w-full h-full bg-slate-400 rounded-sm p-[0.6vw] flex flex-col justify-between pointer-events-none opacity-30" aria-disabled={true}>
                 <p className="text-[1.2vw] font-bold">Optimum Analysis</p>
                 <div className="flex flex-col space-y-2">
                     <div className="flex flex-col space-y-0.5">

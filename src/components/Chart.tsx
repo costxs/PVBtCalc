@@ -9,7 +9,11 @@ const ChartComponent = () => {
   //const curves = curvesobj.curves
   const [opt, setOpt] = useState(false);
   const [chartOptions, setChartOptions] = useState({});
-
+  const [isLog, setIsLog] = useState(false);
+  const [xdefinedLimit, setxDefinedLimit] = useState(false);
+  const [ydefinedLimit, setyDefinedLimit] = useState(false);
+  const [xLimit, setxLimit] = useState(['','']);
+  const [yLimit, setyLimit] = useState(['','']); 
   useEffect(() =>{
   const allCurvesSeries = curves.map((curve) => ({
     name: curve.id, // Usa o ID da curva como nome na legenda
@@ -75,20 +79,82 @@ const ChartComponent = () => {
     },
     xAxis: {
       name: "Flowrate",
-      type: "value", // Agora o eixo X é categórico
+      type: isLog ? "log" : "value", // Agora o eixo X é categórico
+      min: xdefinedLimit ? xLimit[0] : undefined,
+      max: xdefinedLimit ? xLimit[1] : undefined,
     },
     yAxis: {
         name: "PVBt",
-        type: "value",
+        type: isLog? "log" : "value",
+        min: ydefinedLimit ? yLimit[0] : undefined,
+        max: ydefinedLimit ? yLimit[1] : undefined,
     },
     series: allCurvesSeries,
   });
-  },[curves, opt]);
+  },[curves, opt, isLog, xdefinedLimit, ydefinedLimit]);
   return (
-    <div className="w-full p-4 bg-white shadow-md rounded-sm border-3 border-dashed border-gray-500">
-      <div className="w-full flex space-x-1">
-        <input checked={opt} onChange={(e)=>setOpt(e.target.checked)} type="checkbox" />
-        <label htmlFor="">Show PVBt Optimum</label>
+    <div className="max-w-full p-4 px-0 pt-0 bg-white shadow-md rounded-sm border-3 border-dashed border-gray-500">
+      <div className="max-w-full py-2 px-3 bg-gray-200 flex items-center space-x-2  mb-[2vh] text-nowrap overflow-x-auto border-b border-dashed pb-1">
+        <div className="flex items-center justify-center w-fit space-x-1 me-4">
+          <input checked={opt} onChange={(e)=>setOpt(e.target.checked)} type="checkbox" />
+          <label htmlFor="">PVBt Optimum</label>
+        </div>
+        <div className="flex items-center justify-center w-fit space-x-1">
+          <input checked={isLog} onChange={(e)=>setIsLog(e.target.checked)} type="checkbox" />
+          <label htmlFor="" >Log-scale</label>
+        </div>
+        <div className="flex space-x-2 items-center justify-center w-fit">
+          <input checked={xdefinedLimit} onChange={(e)=> setxDefinedLimit(e.target.checked)}  type="checkbox" />
+          <label htmlFor="">X Axis Limites:</label>
+          <input
+              value={xLimit[0]}
+              onChange={(e) => {
+                const newLimit = [...xLimit];
+                newLimit[0] = (e.target.value);
+                setxLimit(newLimit);
+              }}
+              className=" w-1/6 px-0.5" 
+              placeholder="min" 
+              type="number" 
+              />
+          <input 
+              value={xLimit[1]}
+              onChange={(e) => {
+                const newLimit = [...xLimit];
+                newLimit[1] = (e.target.value);
+                setxLimit(newLimit);
+              }} 
+              className=" w-1/6  px-0.5" 
+              placeholder="max" 
+              type="number" 
+              />
+        </div>
+        <div className="flex space-x-2 items-center justify-center w-fit">
+          <input checked={ydefinedLimit} onChange={(e)=> setyDefinedLimit(e.target.checked)}  type="checkbox" />
+          <label htmlFor="">Y Axis Limites:</label>
+          <input
+              value={yLimit[0]}
+              onChange={(e) => {
+                const newLimit = [...yLimit];
+                newLimit[0] = (e.target.value);
+                setyLimit(newLimit);
+              }} 
+              className=" w-1/6 px-0.5" 
+              placeholder="min" 
+              type="text" 
+              />
+          <input
+              value={yLimit[1]}
+              onChange={(e) => {
+                const newLimit = [...yLimit];
+                newLimit[1] = (e.target.value);
+                setyLimit(newLimit);
+              }}  
+              className=" w-1/6 px-0.5" 
+              placeholder="max" 
+              type="text" 
+              />
+        </div>
       </div>
       <ReactECharts option={chartOptions} notMerge={true} style={{ height: "50vh", width: "100%" }} />
     </div>

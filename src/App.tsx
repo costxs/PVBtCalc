@@ -34,7 +34,7 @@ function App() {
                   <OptimalAnalysis/>
                 </div>
               </div>
-              <div className="w-1/2 p-5 bg-slate-300 shadow-md border">
+              <div className="w-1/2 p-5 pt-2 bg-slate-300 shadow-md border">
                 <div className="shadow-md">
                     <ChartComponent />
                 </div>
