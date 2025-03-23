@@ -1,9 +1,11 @@
 import { BiSolidFileImport, BiSolidFileExport  } from "react-icons/bi";
 import { GrTest } from "react-icons/gr";
-import { useDispatch } from "react-redux";
+import { RootState } from "../redux/store";
+import { useDispatch, useSelector } from "react-redux";
 import {logout} from "../redux/user/slice"
 
 const Sidebar = () => {
+  const {username} = useSelector((state:RootState)=>state.user)
   const dispatch = useDispatch()
   const handleLogout = () =>{
       dispatch(logout())
@@ -21,9 +23,13 @@ const Sidebar = () => {
 
       {/* Links do Menu */}
       <div className="flex flex-col gap-10 mt-10">
-        <a href="#" className="flex items-center gap-4 text-gray-700 hover:text-gray-900">
+        <div className="w-full my-[2vh] flex flex-col justify-center items-center space-y-1">
+          <p>User: <span className="font-bold">{username}</span></p>
+          <button className="bg-amber-500 p-1 rounded shadow-md w-1/2 cursor-pointer hover:scale-105" onClick={handleLogout}>LOGOUT</button>
+        </div>
+        <a href="#" className="flex items-center gap-4 text-gray-700 hover:text-gray-900 pointer-events-none">
           <GrTest size={'2vw'} className="text-blue-700"/>
-          <span className="font-bold text-blue-700">Runner</span>
+          <span className="font-bold text-blue-700 ">Runner</span>
         </a>
         <a href="#" className="flex pointer-events-none opacity-60 items-center gap-4 text-gray-700 hover:text-gray-900">
           <BiSolidFileExport  size={'2vw'} />
@@ -33,9 +39,6 @@ const Sidebar = () => {
           <BiSolidFileImport size={'2vw'} />
           <span className="font-bold">Import</span>
         </a>
-        <div className="w-full flex justify-center">
-          <button className="bg-amber-500 p-1 rounded shadow-md cursor-pointer hover:scale-105" onClick={handleLogout}>LOGOUT</button>
-        </div>
       </div>
       <div className="flex flex-col items-center justify-center space-y-[2vh] mt-[5vh]">
         <div className="flex">

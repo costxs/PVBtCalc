@@ -8,6 +8,7 @@ import OptimalAnalysis from "./components/OptimumAnalysis"
 import { useSelector } from "react-redux"
 import { RootState } from "./redux/store"
 import LoginScreen from "./components/Login"
+import FooterSection from "./components/Footer"
 function App() {
   const user = useSelector((state:RootState)=> state.user)
   console.log(user.logged)
@@ -44,6 +45,9 @@ function App() {
               </div>
             </div>
           </div>
+          <footer>
+            <FooterSection/>
+          </footer>
         </div>
       ):(
         <div className="flex items-center justify-center h-[100vh] w-[100vw]"><LoginScreen/></div>

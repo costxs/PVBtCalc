@@ -134,7 +134,7 @@ export default function ResultTab(){
                     <div className="w-2/5 flex flex-col justify-center ps-5 h-full space-y-2 text-[0.75vw]">
                         <h1 className="text-lg uppercase font-bold">Optimun Parameters</h1>
                         <div className="flex space-x-1">
-                            <p className="font-bold">Pore Volume to Breaktrhoug =</p>
+                            <p className="font-bold">Pore Volume to Breakthrough =</p>
                             <p className="font-bold">{(minPVBtRow as any)['PVBt'].toFixed(4)}</p>
                         </div>
 
