@@ -20,7 +20,7 @@ export default function FooterSection(){
                         </a>
                     </div>
                     <div className="w-1/3 px-[3vw]">
-                        <p>
+                        <div>
                             <h3 className="uppercase font-bold pb-[1vh]">Models</h3>
                             <ul className="text-[0.6vw] space-y-1">
                                 <li>
@@ -30,7 +30,7 @@ export default function FooterSection(){
                                     <p className="inline">PVBt Model: </p><strong>Ali, M., & Ziauddin, M.</strong> (2020). <em>Operating conditions for both plain acid and emulsified acid with and without corrosion inhibitor</em>. <em>Journal of Petroleum Science and Engineering</em>, 2020.
                                 </li>
                             </ul>
-                        </p>
+                        </div>
                     </div>
                 </div>
         </div>

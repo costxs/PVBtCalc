@@ -11,7 +11,6 @@ import LoginScreen from "./components/Login"
 import FooterSection from "./components/Footer"
 function App() {
   const user = useSelector((state:RootState)=> state.user)
-  console.log(user.logged)
   return (
     <>
       {user.logged ? (

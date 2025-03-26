@@ -112,7 +112,7 @@ export default function ResultTab(){
                     <div className="flex flex-col w-1/3 justify-center items-center h-full space-y-4">
                         <select name="" value={selectedId} onChange={(e)=>{handleCurve(e.target.value);setSelectedId(e.target.value)}} id="" className="p-2 bg-white w-4/5 rounded-md shadow-md border-gray-500 border ">
                             {ids.map((id)=>(
-                                <option value={id}>{id}</option>
+                                <option key={id} value={id}>{id}</option>
                             ))}
                         </select>
                         <div className="flex space-x-2 w-4/5">

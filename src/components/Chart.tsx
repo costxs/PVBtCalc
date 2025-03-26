@@ -1,14 +1,16 @@
 import ReactECharts from "echarts-for-react";
 import { useSelector } from "react-redux";
 import { RootState } from "../redux/store";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
 import { CurveAnalysis } from "../redux/analysisresults/slice";
 
 const ChartComponent = () => {
   const {curves} = useSelector((state:RootState)=>state.resultCurves);
   const analyse: CurveAnalysis = useSelector((state:RootState)=>state.analysisResult);
-  console.log(analyse);
+  const chartRefA = useRef(null);
+  const chartRefB = useRef(null);
+  
   //const curves = curvesobj.curves
   const [opt, setOpt] = useState(false);
   const [visibleChart, setVisibleChart] = useState('A'); // null, 'A' ou 'B'
@@ -21,7 +23,17 @@ const ChartComponent = () => {
   const [xLimit, setxLimit] = useState(['','']);
   const [yLimit, setyLimit] = useState(['','']);
   
+  useEffect(() => {
+    if (visibleChart === "A" && chartRefA.current) {
+      (chartRefA.current as any).getEchartsInstance().resize(); // força o redimensionamento
+    }
+    if (visibleChart === "B" && chartRefB.current) {
+      (chartRefB.current as any).getEchartsInstance().resize(); // força o redimensionamento
+    }
+  }, [visibleChart]); // só roda quando a aba mudar
 
+
+  
   const showChart = (chart:string) => {
     // Primeiro some com o gráfico atual
     setVisibleChart('');
@@ -260,12 +272,13 @@ const ChartComponent = () => {
         </div>
       </div>
       <div className="min-h-[50vh]">
-        <div className={`transition-all ${visibleChart === 'A'?'block':'hidden'}`}>
-          <ReactECharts option={chartOptions} notMerge={true} style={{ height: "50vh", width: "100%" }} />
-        </div>
-        <div className={`transition-all ${visibleChart === 'B'?'block':'hidden'}`}>
-          <ReactECharts option={chartOptionsA} notMerge={true} style={{ height: "50vh", width: "100%" }} />
-        </div>
+      {visibleChart === 'A' && (
+          <ReactECharts option={chartOptions} ref={chartRefA} notMerge={true} style={{ height: "50vh", width: "100%" }} />
+        )}
+
+        {visibleChart === 'B' && (
+          <ReactECharts option={chartOptionsA} ref={chartRefB} notMerge={true} style={{ height: "50vh", width: "100%" }} />
+        )}
       </div>
     </div>
   );

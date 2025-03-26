@@ -83,7 +83,7 @@ export default function ExpSection(){
                         <input type="number" value={currentFlow } onChange={(e)=> setCurrentFlow(e.target.value)} className="bg-slate-700 w-full text-white p-[0.7vh] shadow-md rounded" placeholder="Flowrate"/>
                         <input type="number" value={currentPVBt} onChange={(e)=> setCurrentPVBt(e.target.value)} className="bg-slate-700 w-full text-white p-[0.7vh] shadow-md rounded" placeholder="PVBt"/>
                     </div>
-                    <button onClick={handleSetPoint} className={`border rounded-md bg-sky-400 shadow-md w-1/3 ${(currentFlow && currentPVBt)?'':'opacity-50'}`} disabled={(currentFlow && currentPVBt)?false:true}>Add to Table</button>
+                    <button onClick={handleSetPoint} className={`border rounded-md bg-sky-400 shadow-md w-2/5 p-[0.5vw] ${(currentFlow && currentPVBt)?'':'opacity-50'}`} disabled={(currentFlow && currentPVBt)?false:true}>Add to Table</button>
                 </div>
                 <div className=" border overflow-y-auto max-h-[18%]">
                     <table className="border  border-gray-700 text-bla bg-gray-100 shadow-md min-w-full text-[0.8vw]">

@@ -13,8 +13,8 @@ const setupMirrorSlice = createSlice({
     core_porosity: 0.15,
     rock_type: 'Indiana Limestone',
     temperature: 24.05,
-    flowrate: null,
-    minimum_analitical:null,
+    flowrate: '',
+    minimum_analitical:'',
     step_numbers: 50,
   },
   reducers: {
@@ -74,7 +74,7 @@ const setupMirrorSlice = createSlice({
         state.core_length = 0;
         state.core_porosity = 0;
         state.temperature = 0;
-        state.flowrate = null;
+        state.flowrate = '';
         state.acid_type = '';
         state.rock_type = '';
         state.step_numbers = 0;

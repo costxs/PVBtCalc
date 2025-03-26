@@ -16,15 +16,15 @@ const Sidebar = () => {
       <div className="justify-items-center mb-2 mt-10">
         <img src="src\assets\brasao.png" className="max-w-32" alt="" />
         <div className="my-[2vh] flex flex-col">
-            <span className="font-bold text-3xl">PVBtCalc</span>
-            <img src="\PVBtCalcLogo.png" alt="" />
+            <span className="font-bold text-[1.8vw]">PVBtCalc</span>
+            <img src="\PVBtCalcLogo.png" className="w-[10vw] h-auto" alt="" />
         </div>
       </div>
 
       {/* Links do Menu */}
       <div className="flex flex-col gap-10 mt-10">
         <div className="w-full my-[2vh] flex flex-col justify-center items-center space-y-1">
-          <p>User: <span className="font-bold">{username}</span></p>
+          <p className="text-nowrap">User: <span className="font-bold">{username}</span></p>
           <button className="bg-amber-500 p-1 rounded shadow-md w-1/2 cursor-pointer hover:scale-105" onClick={handleLogout}>LOGOUT</button>
         </div>
         <a href="#" className="flex items-center gap-4 text-gray-700 hover:text-gray-900 pointer-events-none">
@@ -41,13 +41,13 @@ const Sidebar = () => {
         </a>
       </div>
       <div className="flex flex-col items-center justify-center space-y-[2vh] mt-[5vh]">
-        <div className="flex">
-          <img src="\image.png" alt="" className="w-[50%] h-[10vh]" />
-          <img src="\LCPETROGREY_icon.png" alt="" className="w-24 h-[10vh]" />
+        <div className="flex items-center justify-center">
+          <img src="\image.png" alt="" className="w-[4.5vw] h-auto" />
+          <img src="\LCPETROGREY_icon.png" alt="" className="w-[5vw] h-auto" />
         </div>
-        <div className="flex">
-          <img src="\EPM_icon.png" alt="" className="w-[50%] h-auto" />
-          <img src="\logo-br-min.png" alt="" className="w-[50%] h-auto" />
+        <div className="flex items-center justify-center">
+          <img src="\EPM_icon.png" alt="" className="w-[4vw] h-auto" />
+          <img src="\logo-br-min.png" alt="" className="w-[4vw] h-auto" />
         </div>
         <img src="\logoCenpes.png" alt="" className="w-full h-auto" />
       </div>

@@ -51,9 +51,15 @@ const curvesSlice = createSlice({
         state.ids = state.ids.filter(id => id !== action.payload);
         localStorage.setItem("curves", JSON.stringify(state.curves));
         localStorage.setItem("ids", JSON.stringify(state.ids));
+    },
+    clearAll:(state)=>{
+      state.curves = []
+      state.ids = []
+      localStorage.removeItem("curves")
+      localStorage.removeItem("ids")
     }
   }
 });
-export const {addCurve, removeCurve} = curvesSlice.actions
+export const {addCurve, removeCurve, clearAll} = curvesSlice.actions
 export type {Curve};
 export default curvesSlice.reducer;

@@ -7,7 +7,7 @@ import {setParameter} from "../redux/setup/slice";
 
 export default function OptimalAnalysis(){
     const dispatch = useDispatch()
-    const [selectedParam, setSelectedParam] = useState()
+    const [selectedParam, setSelectedParam] = useState('')
     const handleAnalitical = () => {
         dispatch(setParameter({key:dic[analitical_param],value: selectedParam}))
         dispatch(fetchAnalitical() as any)
@@ -42,7 +42,7 @@ export default function OptimalAnalysis(){
                             <input type="number" value={minimum_analitical as any} onChange={e=>dispatch(setAnalitical(e.target.value))} className="bg-slate-700 text-white p-[0.7vh] shadow-md w-full rounded" placeholder="Minimum"/>
                         </div>
                         <div className="flex justify-around">
-                            <input type="number" value={selectedParam} onChange={e=>setSelectedParam(e.target.value as any)} className="bg-slate-700 text-white p-[0.7vh] shadow-md w-full rounded" placeholder="Maximum"/>
+                            <input type="number" value={selectedParam as any} onChange={e=>setSelectedParam(e.target.value as any)} className="bg-slate-700 text-white p-[0.7vh] shadow-md w-full rounded" placeholder="Maximum"/>
                         </div>
 
                     </div>
