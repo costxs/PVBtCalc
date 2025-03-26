@@ -3,17 +3,112 @@ import { useSelector } from "react-redux";
 import { RootState } from "../redux/store";
 import { useEffect, useState } from "react";
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
+import { CurveAnalysis } from "../redux/analysisresults/slice";
 
 const ChartComponent = () => {
   const {curves} = useSelector((state:RootState)=>state.resultCurves);
+  const analyse: CurveAnalysis = useSelector((state:RootState)=>state.analysisResult);
+  console.log(analyse);
   //const curves = curvesobj.curves
   const [opt, setOpt] = useState(false);
+  const [visibleChart, setVisibleChart] = useState('A'); // null, 'A' ou 'B'
   const [chartOptions, setChartOptions] = useState({});
-  const [isLog, setIsLog] = useState(false);
+  const [chartOptionsA, setChartOptionsA] = useState({});
+  const [xisLog, setxIsLog] = useState(false);
+  const [yisLog, setyIsLog] = useState(false);
   const [xdefinedLimit, setxDefinedLimit] = useState(false);
   const [ydefinedLimit, setyDefinedLimit] = useState(false);
   const [xLimit, setxLimit] = useState(['','']);
-  const [yLimit, setyLimit] = useState(['','']); 
+  const [yLimit, setyLimit] = useState(['','']);
+  
+
+  const showChart = (chart:string) => {
+    // Primeiro some com o gráfico atual
+    setVisibleChart('');
+  
+    // Depois de um tempo, mostra o próximo gráfico
+    setTimeout(() => {
+      setVisibleChart(chart as any); // 'A' ou 'B'
+    }, 0); // 300ms é suficiente pra dar a sensação de transição
+  };
+
+  useEffect(() => {
+    const analysisSerie = ({
+      name: analyse.id+' variation',
+      type: "line",
+      data: analyse.analiticalpoints.map((x, index) => [
+        x.toFixed(4),
+        analyse.pvbtPoints[index].toFixed(4),
+      ]),
+      color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+      showSymbol: true,
+      smooth: true,
+      markPoint: opt ? {
+        data: [
+          {
+            type: "min",
+            name: "Mínimo",
+            symbolSize: 30,
+            label: {
+              formatter: "optimum: {@[1]}",
+              position: "top",
+              color: "#fff",
+              backgroundColor: "#24a424",
+              padding: 5,
+              borderRadius: 5,
+            },
+            itemStyle: {
+              color: "#24a424",
+            },
+          },
+        ],
+      } : null,
+    });
+    setChartOptionsA( {
+      title: {
+        text: "PVBt Behavior",
+        left: "center",
+        textStyle: {
+          color: "#333",
+        },
+      },
+      tooltip: {
+        trigger: "axis",
+      },
+      legend: {
+        orient: 'vertical',
+        right: 10,
+        top: '10%'
+      },
+      grid: {
+        bottom: 60, // espaço suficiente pros labels do eixo X
+        left: 50,
+        right: 100,
+        top: 50
+      },
+      xAxis: {
+        name: analyse.id?analyse.id:'analyzed',
+        type: xisLog ? "log" : "value", // Agora o eixo X é categórico
+        min: xdefinedLimit ? xLimit[0] : undefined,
+        max: xdefinedLimit ? xLimit[1] : undefined,
+      },
+      yAxis: {
+          name: "PVBt",
+          type: yisLog? "log" : "value",
+          min: ydefinedLimit ? yLimit[0] : undefined,
+          max: ydefinedLimit ? yLimit[1] : undefined,
+      },
+      series: analysisSerie,
+
+    });
+  }, [analyse, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit]);
+  
+
+
+
+
+
+
   useEffect(() =>{
   const allCurvesSeries = curves.map((curve) => ({
     name: curve.id, // Usa o ID da curva como nome na legenda
@@ -79,29 +174,37 @@ const ChartComponent = () => {
     },
     xAxis: {
       name: "Flowrate",
-      type: isLog ? "log" : "value", // Agora o eixo X é categórico
+      type: xisLog ? "log" : "value",
       min: xdefinedLimit ? xLimit[0] : undefined,
       max: xdefinedLimit ? xLimit[1] : undefined,
     },
     yAxis: {
         name: "PVBt",
-        type: isLog? "log" : "value",
+        type: yisLog? "log" : "value",
         min: ydefinedLimit ? yLimit[0] : undefined,
         max: ydefinedLimit ? yLimit[1] : undefined,
     },
     series: allCurvesSeries,
   });
-  },[curves, opt, isLog, xdefinedLimit, ydefinedLimit]);
+  },[curves, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit]);
   return (
     <div className="max-w-full p-4 px-0 pt-0 bg-white shadow-md rounded-sm border-3 border-dashed border-gray-500">
+      <div className="divide-x">
+        <button className={`bg-blue-400 p-[0.2vw] border-b cursor-pointer hover:bg-blue-700 px-[0.4vw] shadow-sm ${visibleChart === 'A'?'bg-blue-700':''}`} onClick={() => showChart('A')}>PVBt Chart</button>
+        <button className={`bg-blue-400 p-[0.2vw] border-b cursor-pointer hover:bg-blue-700 px-[0.4vw] shadow-sm ${visibleChart === 'B'?'bg-blue-700':''}`} onClick={() => showChart('B')}>Analysis Chart</button>
+      </div>
       <div className="max-w-full py-2 px-3 bg-gray-200 flex items-center space-x-2  mb-[2vh] text-nowrap overflow-x-auto border-b border-dashed pb-1">
         <div className="flex items-center justify-center w-fit space-x-1 me-4">
           <input checked={opt} onChange={(e)=>setOpt(e.target.checked)} type="checkbox" />
           <label htmlFor="">PVBt Optimum</label>
         </div>
         <div className="flex items-center justify-center w-fit space-x-1">
-          <input checked={isLog} onChange={(e)=>setIsLog(e.target.checked)} type="checkbox" />
-          <label htmlFor="" >Log-scale</label>
+          <input checked={xisLog} onChange={(e)=>setxIsLog(e.target.checked)} type="checkbox" />
+          <label htmlFor="" >X-Log</label>
+        </div>
+        <div className="flex items-center justify-center w-fit space-x-1">
+          <input checked={yisLog} onChange={(e)=>setyIsLog(e.target.checked)} type="checkbox" />
+          <label htmlFor="" >Y-Log</label>
         </div>
         <div className="flex space-x-2 items-center justify-center w-fit">
           <input checked={xdefinedLimit} onChange={(e)=> setxDefinedLimit(e.target.checked)}  type="checkbox" />
@@ -156,7 +259,14 @@ const ChartComponent = () => {
               />
         </div>
       </div>
-      <ReactECharts option={chartOptions} notMerge={true} style={{ height: "50vh", width: "100%" }} />
+      <div className="min-h-[50vh]">
+        <div className={`transition-all ${visibleChart === 'A'?'block':'hidden'}`}>
+          <ReactECharts option={chartOptions} notMerge={true} style={{ height: "50vh", width: "100%" }} />
+        </div>
+        <div className={`transition-all ${visibleChart === 'B'?'block':'hidden'}`}>
+          <ReactECharts option={chartOptionsA} notMerge={true} style={{ height: "50vh", width: "100%" }} />
+        </div>
+      </div>
     </div>
   );
 };

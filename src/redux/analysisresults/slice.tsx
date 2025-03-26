@@ -2,20 +2,20 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import handleAuthError from "../services/fetchAuth";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
-export const fetchCurve = createAsyncThunk("curve/fetch", async (_, {getState, dispatch}) => {
+export const fetchAnalitical = createAsyncThunk("analysis/fetch", async (_, {getState,dispatch}) => {
     const state = getState() as RootState
-    const setup = state.setup
+    const setup = state.optSetup
     const token = state.user.token
     const setupEntries = Object.entries(setup);
+    console.log(setupEntries)
     // Removendo o primeiro e o último item
-    const filteredSetup = Object.fromEntries(setupEntries.slice(1, -1));
-    const response = await fetch("https://pvbtcalcapi-production.up.railway.app/pvbtcurve", {
+    const response = await fetch("http://127.0.0.1:8000/pvbtanalitical", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json", // Informar que estamos enviando JSON
       },
-      body: JSON.stringify(filteredSetup),
+      body: JSON.stringify(setup),
     });
     const data = await response.json();
     handleAuthError(response,dispatch)
@@ -23,25 +23,38 @@ export const fetchCurve = createAsyncThunk("curve/fetch", async (_, {getState, d
   });
   
 
+
+
+  interface CurveAnalysis {
+    id: string;
+    acid: string;
+    rock: string;
+    pvbtPoints: number[];
+    analiticalpoints: number[];
+    intersticialVelocity: number[];
+    iDa: number[];
+    volumeToBt: number[];
+    timeToBt: number[];
+    wormholeVelocity: number[];
+    darcyVelocity: number[];
+  }
+
 // 🔹 Criando o Slice do Redux
 const resultSlice = createSlice({
-  name: "results",
+  name: "resultsBehavior",
   initialState: {
     id:'',
     acid:'',
     rock:'',
     pvbtPoints:[],
-    flowratePoints:[],
+    analiticalpoints:[],
     intersticialVelocity:[],
     iDa:[],
     volumeToBt:[],
     timeToBt:[],
     wormholeVelocity:[],
     darcyVelocity:[],
-    loading:false,
-    error:false,
-    processed:false,
-   },
+   } as CurveAnalysis,
   reducers: {
     setId:(state, action)=>{
         state.id = action.payload
@@ -54,16 +67,12 @@ const resultSlice = createSlice({
   },
   extraReducers(builder) {
       builder
-        .addCase(fetchCurve.pending, (state)=>{
-            state.loading = true;
-            state.processed = false;
-            state.error = false;
+        .addCase(fetchAnalitical.pending, ()=>{
         })
-        .addCase(fetchCurve.fulfilled, (state, action) => {
-            state.loading = false;
-            state.processed = true;
+        .addCase(fetchAnalitical.fulfilled, (state, action) => {
+            state.id = action.payload['analyzed']
             state.pvbtPoints = action.payload['pvbtpoints'];
-            state.flowratePoints = action.payload['flowratepoints'];
+            state.analiticalpoints = action.payload['analiticalpoints'];
             state.intersticialVelocity = action.payload['insterticialvelocity'];
             state.iDa = action.payload['ida'];
             state.volumeToBt = action.payload['volumetobt'];
@@ -71,12 +80,10 @@ const resultSlice = createSlice({
             state.wormholeVelocity = action.payload['wormholevelocity'];
             state.darcyVelocity = action.payload['darcyvelocity'];
         })
-        .addCase(fetchCurve.rejected, (state)=>{
-            state.loading = false;
-            state.processed = false;
-            state.error = true;
+        .addCase(fetchAnalitical.rejected, ()=>{
         })
   },
 });
+export type {CurveAnalysis};
 export const {setId, setSystem} = resultSlice.actions
 export default resultSlice.reducer;

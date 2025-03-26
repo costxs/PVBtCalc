@@ -4,6 +4,8 @@ import resultSlice from './results/slice'
 import paramSlice from './parameters/slice'
 import curvesSlice from './storageresults/slice'
 import userSlice from './user/slice'
+import optsetupSlice from './optsetup/slice'
+import analysisSlice from './analysisresults/slice'
 const store = configureStore({
     reducer: {
         setup: setupSlice,
@@ -11,6 +13,8 @@ const store = configureStore({
         parameters: paramSlice,
         resultCurves: curvesSlice,
         user: userSlice,
+        optSetup: optsetupSlice,
+        analysisResult : analysisSlice,
     },
 });
 

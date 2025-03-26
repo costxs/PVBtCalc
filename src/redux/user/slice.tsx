@@ -1,12 +1,12 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-
+import handleAuthError from "../services/fetchAuth";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
-export const fetchLogin = createAsyncThunk("login/fetch", async ({username, password}:{username:string; password:string}) => {
+export const fetchLogin = createAsyncThunk("login/fetch", async ({username, password}:{username:string; password:string},{dispatch}) => {
     const formData = new URLSearchParams();
     formData.append("username",username);
     formData.append("password",password);
   
-    const response = await fetch("https://fopagscanapi-production.up.railway.app/auth/", {
+    const response = await fetch("https://pvbtcalcapi-production.up.railway.app/auth/", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -15,6 +15,7 @@ export const fetchLogin = createAsyncThunk("login/fetch", async ({username, pass
     });
   
     const data = await response.json();
+    handleAuthError(response, dispatch);
     return data;
   });
 

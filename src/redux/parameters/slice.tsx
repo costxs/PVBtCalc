@@ -1,8 +1,9 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
 import { RootState } from "../store";
+import handleAuthError from "../services/fetchAuth";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
-export const fetchParam = createAsyncThunk("param/fetch", async (_, {getState}) => {
+export const fetchParam = createAsyncThunk("param/fetch", async (_, {getState,dispatch}) => {
     const state = getState() as RootState
     const setup = state.setup
     const token = state.user.token
@@ -18,6 +19,7 @@ export const fetchParam = createAsyncThunk("param/fetch", async (_, {getState}) 
       body: JSON.stringify(filteredSetup),
     });
     const data = await response.json();
+    handleAuthError(response,dispatch)
     return data;
   });
   

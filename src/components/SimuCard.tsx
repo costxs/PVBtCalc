@@ -78,11 +78,11 @@ export default function SimuSetupCard(){
                             <button className="rounded bg-yellow-600 p-1 shadow-lg cursor-pointer hover:scale-105 text-nowrap" onClick={handleReset}>Reset Parameters</button>
                         </div>
                         <div className="flex flex-col">
-                            <label htmlFor="" className="font-semibold">Flowrate</label>
+                            <label htmlFor="" className="font-semibold">Flowrate (cm³/min)</label>
                             <div className="flex items-center justify-between space-x-1">
-                                <input type="number" className="bg-slate-700 text-white p-2 shadow-md rounded w-6/12" placeholder="Initial" value={iflowrate} onChange={(e)=>dispatch(setParameter({key:'flowrate',value:e.target.value}))}/>
+                                <input type="number" className="bg-slate-700 text-white p-2 shadow-md rounded w-6/12" placeholder="Initial" value={fflowrate} onChange={(e)=>dispatch(setParameter({key:'minimum_flowrate',value:e.target.value}))}/>
                                 <p></p>
-                                <input type="number" className="bg-slate-700 text-white p-2 shadow-md rounded w-6/12" placeholder="Final" value={fflowrate} onChange={(e)=>dispatch(setParameter({key:'minimum_flowrate',value:e.target.value}))}/>
+                                <input type="number" className="bg-slate-700 text-white p-2 shadow-md rounded w-6/12" placeholder="Final" value={iflowrate} onChange={(e)=>dispatch(setParameter({key:'flowrate',value:e.target.value}))}/>
                             </div>
                         </div>
                         <div>
