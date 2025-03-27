@@ -1,12 +1,33 @@
-import { BiSolidFileImport, BiSolidFileExport  } from "react-icons/bi";
+import { BiSolidFileExport  } from "react-icons/bi";
 import { GrTest } from "react-icons/gr";
 import { RootState } from "../redux/store";
 import { useDispatch, useSelector } from "react-redux";
 import {logout} from "../redux/user/slice"
-
+import { useState } from "react";
+import { Curve } from "../redux/storageresults/slice";
+import exportCurveAsVerticalTable from "../tools/export";
 const Sidebar = () => {
   const {username} = useSelector((state:RootState)=>state.user)
   const dispatch = useDispatch()
+  const {ids, curves} = useSelector((state:RootState)=> state.resultCurves)
+  const [exp, setExp] = useState(false);
+  const [curve, setCurve] = useState(null);
+
+  const handleID = (id: string) => {
+    setCurve((curves as any).find((c:Curve)=> c.id === id));
+    
+  }
+  console.log(curve)
+  const handleExport = () =>{
+    if(curve){
+      exportCurveAsVerticalTable(curve as any);
+    }
+    setExp(false);
+  }
+
+  const handleExp = () => {
+    setExp(true);
+  }
   const handleLogout = () =>{
       dispatch(logout())
   }
@@ -31,7 +52,7 @@ const Sidebar = () => {
           <GrTest size={'2vw'} className="text-blue-700"/>
           <span className="font-bold text-blue-700 ">Runner</span>
         </a>
-        <a href="#" className="flex pointer-events-none opacity-60 items-center gap-4 text-gray-700 hover:text-gray-900">
+        <a onClick={handleExp} className="flex items-center cursor-pointer gap-4 text-gray-700 hover:text-gray-900">
           <BiSolidFileExport  size={'2vw'} />
           <span className="font-bold">Export</span>
         </a>
@@ -46,6 +67,19 @@ const Sidebar = () => {
           <img src="\logo-br-min.png" alt="" className="w-[4vw] h-auto" />
         </div>
         <img src="\logoCenpes.png" alt="" className="w-full h-auto" />
+      </div>
+      <div className={`absolute top-[30%] px-[0.7vw] py-[2vh] space-y-[5vh] left-[30%] shadow-2xl rounded border-2 flex items-center flex-col bg-slate-300 min-w-[20vw] h-fit w-fit ${exp?'block':'hidden'}`}>
+        <p className="font-semibold">Select a Curve and click to export</p>
+        <ul className="w-full divide-y border">
+          {ids.map((id)=>(
+            <li onClick={()=>handleID(id)} className={`cursor-pointer font-semibold w-full  p-[0.3vw] ${(curve?((curve as any).id === id ? 'bg-sky-500':'bg-white'):'bg-white')}`}>{id}</li>
+          ))}
+        </ul>
+        <div className="flex space-x-[0.5vw]">
+
+          <button className="text-center w-6/12 p-[1vh] shadow-md rounded-md cursor-pointer hover:scale-105 active:scale-95 bg-lime-600" onClick={handleExport}>Export</button>
+          <button className="text-center w-6/12 p-[1vh] shadow-md rounded-md cursor-pointer hover:scale-105 active:scale-95 bg-orange-600" onClick={()=>setExp(false)}>Cancel</button>
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ export default function handleAuthError(response:Response, dispatch:ThunkDispatc
     if (response.status === 401){
         dispatch(logout())
         dispatch(clearAll())
+        localStorage.clear();
         alert("Sua sessão expirou. Faça login novamente.");
     }
 }
