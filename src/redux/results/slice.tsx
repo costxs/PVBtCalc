@@ -30,6 +30,11 @@ const resultSlice = createSlice({
     id:'',
     acid:'',
     rock:'',
+    length:0,
+    diameter:0,
+    porosity:0,
+    concentration:0,
+    temperature:0,
     pvbtPoints:[],
     flowratePoints:[],
     intersticialVelocity:[],
@@ -50,6 +55,16 @@ const resultSlice = createSlice({
         const {acid, rock} = action.payload
         state.acid = acid
         state.rock = rock
+    },
+    setOthers:(state,action)=>{
+        
+        state.acid = action.payload.acid_type
+        state.rock = action.payload.rock_type
+        state.length = action.payload.core_length
+        state.diameter = action.payload.core_diameter
+        state.porosity = action.payload.core_porosity
+        state.concentration = action.payload.acid_concentration
+        state.temperature = action.payload.temperature
     }
   },
   extraReducers(builder) {
@@ -78,5 +93,5 @@ const resultSlice = createSlice({
         })
   },
 });
-export const {setId, setSystem} = resultSlice.actions
+export const {setId, setSystem, setOthers} = resultSlice.actions
 export default resultSlice.reducer;

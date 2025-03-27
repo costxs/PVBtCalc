@@ -6,6 +6,11 @@ interface Curve {
     id: string;
     acid: string;
     rock: string;
+    length: number,
+    diameter: number,
+    porosity: number,
+    concentration: number,
+    temperature: number,
     pvbtPoints: number[];
     flowratePoints: number[];
     intersticialVelocity: number[];
@@ -33,6 +38,11 @@ const curvesSlice = createSlice({
             id: action.payload.id,
             acid: action.payload.acid,
             rock: action.payload.rock,
+            length: action.payload.length,
+            diameter: action.payload.diameter,
+            porosity: action.payload.porosity,
+            concentration: action.payload.concentration,
+            temperature: action.payload.temperature,
             pvbtPoints: action.payload.pvbtPoints,
             flowratePoints: action.payload.flowratePoints,
             intersticialVelocity: action.payload.intersticialVelocity,

@@ -122,82 +122,82 @@ const ChartComponent = () => {
 
 
   useEffect(() =>{
-  const allCurvesSeries = curves.map((curve) => ({
-    name: curve.id, // Usa o ID da curva como nome na legenda
-    type: "line",
-    data: curve.flowratePoints.map((x, index) => [x.toFixed(4), curve.pvbtPoints[index].toFixed(4)]), // Mapeia X e Y
-    color: "#" + Math.floor(Math.random() * 16777215).toString(16), // Gera cor aleatória
-    showSymbol: true,
-    smooth: true,
-    markPoint: opt ? {
-      data: [
-        {
-          type: "min", // 🔥 Marca automaticamente o ponto mínimo da série
-          name: "Mínimo",
-          symbolSize: 30, // Tamanho do marcador
-          label: {
-            formatter: "optimum: {@[1]}", // Exibe o valor do eixo Y
-            position: "top",
-            color: "#fff",
-            backgroundColor: "#24a424",
-            padding: 5,
-            borderRadius: 5,
+    const allCurvesSeries = curves.map((curve) => ({
+      name: curve.id, // Usa o ID da curva como nome na legenda
+      type: "line",
+      data: curve.flowratePoints.map((x, index) => [x.toFixed(4), curve.pvbtPoints[index].toFixed(4)]), // Mapeia X e Y
+      color: "#" + Math.floor(Math.random() * 16777215).toString(16), // Gera cor aleatória
+      showSymbol: true,
+      smooth: true,
+      markPoint: opt ? {
+        data: [
+          {
+            type: "min", // 🔥 Marca automaticamente o ponto mínimo da série
+            name: "Mínimo",
+            symbolSize: 30, // Tamanho do marcador
+            label: {
+              formatter: "optimum: {@[1]}", // Exibe o valor do eixo Y
+              position: "top",
+              color: "#fff",
+              backgroundColor: "#24a424",
+              padding: 5,
+              borderRadius: 5,
+            },
+            itemStyle: {
+              color: "#24a424", // Cor do marcador
+            },
           },
-          itemStyle: {
-            color: "#24a424", // Cor do marcador
-          },
-        },
-      ],
-    }: null,
-  }));
+        ],
+      }: null,
+    }));
   // Configuração do gráfico
-  setChartOptions( {
-    title: {
-      text: "PVBt Chart",
-      left: "center",
-      textStyle: {
-        color: "#333",
+    setChartOptions( {
+      title: {
+        text: "PVBt Chart",
+        left: "center",
+        textStyle: {
+          color: "#333",
+        },
       },
-    },
-    tooltip: {
-      trigger: "axis",
-      formatter: (params: TooltipComponentFormatterCallbackParams | TooltipComponentFormatterCallbackParams[]) => {
+      tooltip: {
+        trigger: "axis",
+        formatter: (params: TooltipComponentFormatterCallbackParams | TooltipComponentFormatterCallbackParams[]) => {
+          
+          const paramArray = Array.isArray(params) ? params : [params];
+          
+          let tooltipContent = `${(paramArray[0] as any).axisValue ?? ""}<br/>`; // Valor do eixo X
         
-        const paramArray = Array.isArray(params) ? params : [params];
+          paramArray.forEach((item) => {
+            tooltipContent += `
+              <div style="display: flex; align-items: center;">
+                <span style="display:inline-block;width:10px;height:10px;background-color:${(item as any).color};margin-right:5px;"></span>
+                ${'PVBt'} → <strong>${(item as any).value[1]}</strong>
+              </div>
+            `;
+          });
         
-        let tooltipContent = `${(paramArray[0] as any).axisValue ?? ""}<br/>`; // Valor do eixo X
-      
-        paramArray.forEach((item) => {
-          tooltipContent += `
-            <div style="display: flex; align-items: center;">
-              <span style="display:inline-block;width:10px;height:10px;background-color:${(item as any).color};margin-right:5px;"></span>
-              ${'PVBt'} → <strong>${(item as any).value[1]}</strong>
-            </div>
-          `;
-        });
-      
-        return tooltipContent;
-      }
-    },
-    legend: {
-      orient: 'vertical',
-      right: 10,
-      top: '10%'
-    },
-    xAxis: {
-      name: "Flowrate",
-      type: xisLog ? "log" : "value",
-      min: xdefinedLimit ? xLimit[0] : undefined,
-      max: xdefinedLimit ? xLimit[1] : undefined,
-    },
-    yAxis: {
-        name: "PVBt",
-        type: yisLog? "log" : "value",
-        min: ydefinedLimit ? yLimit[0] : undefined,
-        max: ydefinedLimit ? yLimit[1] : undefined,
-    },
-    series: allCurvesSeries,
-  });
+          return tooltipContent;
+        }
+      },
+      legend: {
+        orient: 'vertical',
+        right: 10,
+        top: '10%'
+      },
+      xAxis: {
+        name: "Flowrate",
+        type: xisLog ? "log" : "value",
+        min: xdefinedLimit ? xLimit[0] : undefined,
+        max: xdefinedLimit ? xLimit[1] : undefined,
+      },
+      yAxis: {
+          name: "PVBt",
+          type: yisLog? "log" : "value",
+          min: ydefinedLimit ? yLimit[0] : undefined,
+          max: ydefinedLimit ? yLimit[1] : undefined,
+      },
+      series: allCurvesSeries,
+    });
   },[curves, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit]);
   return (
     <div className="max-w-full p-4 px-0 pt-0 bg-white shadow-md rounded-sm border-3 border-dashed border-gray-500">

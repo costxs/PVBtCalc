@@ -2,6 +2,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../redux/store";
 import { useEffect, useState } from "react";
 import { removeCurve } from "../redux/storageresults/slice";
+import exportCurveAsVerticalTable from "../tools/export";
 import type {Curve} from '../redux/storageresults/slice'
 export default function ResultTab(){
     //const headers = ["#", "q0", "iv", "1/Da", "PVBt", "VBt", "tBt", "Dm", "Wv", "Ca0", "T", "Dc", "Lc", "phi", "X"];
@@ -12,7 +13,7 @@ export default function ResultTab(){
     }
     const {ids, curves} = useSelector((state:RootState)=> state.resultCurves)
     const [selectedId, setSelectedId] = useState(ids.length > 0 ? ids[0] : "");
-    const [curve, setCurve] = useState(false)
+    const [curve, setCurve] = useState(null)
     const [acid, setAcid] = useState('');
     const [rock, setRock] = useState('');
     const [data, setData] = useState({
@@ -27,6 +28,7 @@ export default function ResultTab(){
     })
     const handleCurve = (id: any) => {
         setCurve((curves as any).find((c:Curve)=> c.id === id));
+        
         if (!curve) return;
     }
 
@@ -98,7 +100,7 @@ export default function ResultTab(){
     },[curve]);
 
     const headers = Object.keys(data); // 🔥 Obtém os nomes das colunas automaticamente
-    const numRows = (data as any)[headers[0]].length;
+    const numRows = data? (data as any)[headers[0]].length : null;
     const minPVBtIndex = data["PVBt"].indexOf(Math.min(...data["PVBt"]));
     const minPVBtRow = headers.reduce((obj, key) => {
         (obj as any)[key] = (data as any)[key][minPVBtIndex]; // Associa cada chave ao valor correspondente na linha mínima
@@ -116,8 +118,8 @@ export default function ResultTab(){
                             ))}
                         </select>
                         <div className="flex space-x-2 w-4/5">
-                            <button className="border p-1 bg-lime-500 rounded-md w-1/2 shadow-md font-bold opacity-50" disabled={true}>Export</button>
-                            <button className="border p-1 bg-orange-500 rounded-md w-1/2 shadow-md font-bold hover:scale-105 cursor-pointer" onClick={handleDelete}>DELETE</button>
+                            <button className="border p-1 bg-lime-500 rounded-md w-1/2 shadow-md font-bold hover:scale-105 cursor-pointer active:scale-100" onClick={curve?() => exportCurveAsVerticalTable(curve):()=>null}>Export</button>
+                            <button className="border p-1 bg-orange-500 rounded-md w-1/2 shadow-md font-bold hover:scale-105 cursor-pointer active:scale-100" onClick={handleDelete}>DELETE</button>
                         </div>
                     </div>
                     <div className="w-1/4 flex flex-col ps-5 justify-center min-h-full text-[0.85vw]">

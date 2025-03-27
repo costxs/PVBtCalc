@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../redux/store";
 import {setParameter, resetParameter} from "../redux/setup/slice";
-import { fetchCurve, setId, setSystem } from "../redux/results/slice";
+import { fetchCurve, setId, setSystem, setOthers } from "../redux/results/slice";
 import { addCurve } from "../redux/storageresults/slice";
 import { fetchParam } from "../redux/parameters/slice";
 import { useEffect, useState } from "react";
@@ -32,6 +32,7 @@ export default function SimuSetupCard(){
         }
     }
     const {flowrate: iflowrate, minimum_flowrate: fflowrate, acid_concentration: aConcentration, temperature, acid_type: acidType, step_numbers, id, rock_type} = useSelector((state:RootState)=> state.setup)
+    const setup = useSelector((state:RootState)=>state.setup)
     const dataCurve = useSelector((state:RootState)=>state.results)
     const dispatch = useDispatch()
     const [showSelected, setShowSelected] = useState('A')
@@ -40,6 +41,7 @@ export default function SimuSetupCard(){
     const handleCurve =  () => {
         dispatch(setId(id));
         dispatch(setSystem({acid:acidType, rock: rock_type}))
+        dispatch(setOthers(setup));
         dispatch((fetchCurve() as any));
         dispatch((fetchParam() as any));
         

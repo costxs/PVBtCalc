@@ -35,10 +35,6 @@ const Sidebar = () => {
           <BiSolidFileExport  size={'2vw'} />
           <span className="font-bold">Export</span>
         </a>
-        <a href="#" className="flex pointer-events-none opacity-60 items-center gap-4 text-gray-700 hover:text-gray-900">
-          <BiSolidFileImport size={'2vw'} />
-          <span className="font-bold">Import</span>
-        </a>
       </div>
       <div className="flex flex-col items-center justify-center space-y-[2vh] mt-[5vh]">
         <div className="flex items-center justify-center">
