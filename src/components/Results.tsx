@@ -24,7 +24,7 @@ export default function ResultTab(){
         'wv (m/s)':[0],
         'vbt (cm³)':[0],
         'tbt (s)':[0],
-        'dv':[0]
+        'dv (m/s)':[0]
     })
     const handleCurve = (id: any) => {
         setCurve((curves as any).find((c:Curve)=> c.id === id));
@@ -48,7 +48,7 @@ export default function ResultTab(){
                 'wv (m/s)':[0],
                 'vbt (cm³)':[0],
                 'tbt (s)':[0],
-                'dv':[0]
+                'dv (m/s)':[0]
             });
             setAcid('');
             setRock('');
@@ -71,7 +71,7 @@ export default function ResultTab(){
                 return 'Acid Volume to Breakthrough (cm³)';
             case('tbt (s)'):
                 return 'Time to Breakthrough (s)';
-            case('dv'):
+            case('dv (m/s)'):
                 return 'Darcy Velocity (m/s)';
             default: 
                 return ''
@@ -90,7 +90,7 @@ export default function ResultTab(){
                 'wv (m/s)':(curve as any).wormholeVelocity,
                 'vbt (cm³)':(curve as any).volumeToBt,
                 'tbt (s)':(curve as any).timeToBt,
-                'dv':(curve as any).darcyVelocity
+                'dv (m/s)':(curve as any).darcyVelocity
         
             });
             const {acid, rock} = curve as any;
