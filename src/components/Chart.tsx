@@ -205,7 +205,7 @@ const ChartComponent = () => {
         <button className={`bg-blue-400 p-[0.2vw] border-b cursor-pointer hover:bg-blue-700 px-[0.4vw] shadow-sm ${visibleChart === 'A'?'bg-blue-700':''}`} onClick={() => showChart('A')}>PVBt Chart</button>
         <button className={`bg-blue-400 p-[0.2vw] border-b cursor-pointer hover:bg-blue-700 px-[0.4vw] shadow-sm ${visibleChart === 'B'?'bg-blue-700':''}`} onClick={() => showChart('B')}>Analysis Chart</button>
       </div>
-      <div className="max-w-full py-2 px-3 bg-gray-200 flex items-center space-x-2  mb-[2vh] text-nowrap overflow-x-auto border-b border-dashed pb-1">
+      <div className="max-w-full py-2 px-2 bg-gray-200 flex items-center space-x-[0.5vw]  mb-[2vh] text-nowrap overflow-x-auto border-b border-dashed pb-1">
         <div className="flex items-center justify-center w-fit space-x-1 me-4">
           <input checked={opt} onChange={(e)=>setOpt(e.target.checked)} type="checkbox" />
           <label htmlFor="">PVBt Optimum</label>
@@ -220,7 +220,7 @@ const ChartComponent = () => {
         </div>
         <div className="flex space-x-2 items-center justify-center w-fit">
           <input checked={xdefinedLimit} onChange={(e)=> setxDefinedLimit(e.target.checked)}  type="checkbox" />
-          <label htmlFor="">X Axis Limites:</label>
+          <label htmlFor="">X Limites:</label>
           <input
               value={xLimit[0]}
               onChange={(e) => {
@@ -228,9 +228,9 @@ const ChartComponent = () => {
                 newLimit[0] = (e.target.value);
                 setxLimit(newLimit);
               }}
-              className=" w-1/6 px-0.5" 
+              className=" max-w-[2vw] px-0.5" 
               placeholder="min" 
-              type="number" 
+              type="text" 
               />
           <input 
               value={xLimit[1]}
@@ -239,14 +239,14 @@ const ChartComponent = () => {
                 newLimit[1] = (e.target.value);
                 setxLimit(newLimit);
               }} 
-              className=" w-1/6  px-0.5" 
+              className=" max-w-[2vw]  px-0.5" 
               placeholder="max" 
-              type="number" 
+              type="text" 
               />
         </div>
         <div className="flex space-x-2 items-center justify-center w-fit">
           <input checked={ydefinedLimit} onChange={(e)=> setyDefinedLimit(e.target.checked)}  type="checkbox" />
-          <label htmlFor="">Y Axis Limites:</label>
+          <label htmlFor="">Y Limites:</label>
           <input
               value={yLimit[0]}
               onChange={(e) => {

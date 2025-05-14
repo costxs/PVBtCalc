@@ -143,7 +143,7 @@ export default function ResultTab(){
                     </div>
                 </div>
                 <div className="flex flex-col items-center  overflow-y-auto">
-                    <div className="max-h-[15vh] overflow-y-auto w-full">                    
+                    <div className="max-h-[13vh] overflow-y-auto w-full">                    
                         <table className="border border-gray-700 text-bla bg-gray-100 shadow-md w-full">
                             <thead>
                             <tr className="bg-gray-300">
