@@ -59,14 +59,11 @@ const Sidebar = () => {
       </div>
       <div className="flex flex-col items-center justify-center space-y-[2vh] mt-[5vh]">
         <div className="flex items-center justify-center">
-          <img src="\image.png" alt="" className="w-[4.5vw] h-auto" />
-          <img src="\LCPETROGREY_icon.png" alt="" className="w-[5vw] h-auto" />
+          <img src="\image.png" alt="" className="w-[5vw] h-auto" />
         </div>
         <div className="flex items-center justify-center">
-          <img src="\EPM_icon.png" alt="" className="w-[4vw] h-auto" />
-          <img src="\logo-br-min.png" alt="" className="w-[4vw] h-auto" />
-        </div>
-        <img src="\logoCenpes.png" alt="" className="w-full h-auto" />
+          <img src="\LCPETROGREY_icon.png" alt="" className="w-[6vw] h-auto" />
+        </div>  
       </div>
       <div className={`absolute top-[30%] px-[0.7vw] py-[2vh] space-y-[5vh] left-[30%] shadow-2xl rounded border-2 flex items-center flex-col bg-slate-300 min-w-[20vw] h-fit w-fit ${exp?'block':'hidden'}`}>
         <p className="font-semibold">Select a Curve and click to export</p>
