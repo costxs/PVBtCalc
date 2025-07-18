@@ -42,7 +42,7 @@ export default function FooterSection(){
                                     <p className="inline">Acid corelation: </p><strong>Perry, R. H.</strong> (1934). <em>Perry's Chemical Engineers' Handbook</em>.
                                 </li>
                                 <li>
-                                    <p className="inline">PVBt Model: </p><strong>Ali, M., & Ziauddin, M.</strong> (2020). <em>Operating conditions for both plain acid and emulsified acid with and without corrosion inhibitor</em>. <em>Journal of Petroleum Science and Engineering</em>, 2020.
+                                    <p className="inline">PVBt Model: </p><strong>Ali, M., & Ziauddin, M.</strong> (2020). <em>Carbonate acidizing: A mechanistic model for wormhole growth in linear and radial flow</em>. <em>Journal of Petroleum Science and Engineering</em>, 2020.
                                 </li>
                             </ul>
                         </div>
