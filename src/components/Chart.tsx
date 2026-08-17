@@ -6,52 +6,49 @@ import type { TooltipComponentFormatterCallbackParams } from "echarts";
 import { CurveAnalysis } from "../redux/analysisresults/slice";
 
 const ChartComponent = () => {
-  const {curves} = useSelector((state:RootState)=>state.resultCurves);
-  const analyse: CurveAnalysis = useSelector((state:RootState)=>state.analysisResult);
+  const { curves } = useSelector((state: RootState) => state.resultCurves);
+  const analyse: CurveAnalysis = useSelector((state: RootState) => state.analysisResult);
   const chartRefA = useRef(null);
   const chartRefB = useRef(null);
-  
-  //const curves = curvesobj.curves
+
   const [opt, setOpt] = useState(false);
-  const [visibleChart, setVisibleChart] = useState('A'); // null, 'A' ou 'B'
+  const [visibleChart, setVisibleChart] = useState('A'); 
   const [chartOptions, setChartOptions] = useState({});
   const [chartOptionsA, setChartOptionsA] = useState({});
   const [xisLog, setxIsLog] = useState(false);
   const [yisLog, setyIsLog] = useState(false);
+  const [grid, setGrid] = useState(true);
+
+  // Keep limits functionality but they are hidden unless actively used, or just keep them minimal
   const [xdefinedLimit, setxDefinedLimit] = useState(false);
   const [ydefinedLimit, setyDefinedLimit] = useState(false);
-  const [xLimit, setxLimit] = useState(['','']);
-  const [yLimit, setyLimit] = useState(['','']);
-  
+  const [xLimit, setxLimit] = useState(['', '']);
+  const [yLimit, setyLimit] = useState(['', '']);
+
   useEffect(() => {
     if (visibleChart === "A" && chartRefA.current) {
-      (chartRefA.current as any).getEchartsInstance().resize(); // força o redimensionamento
+      (chartRefA.current as any).getEchartsInstance().resize();
     }
     if (visibleChart === "B" && chartRefB.current) {
-      (chartRefB.current as any).getEchartsInstance().resize(); // força o redimensionamento
+      (chartRefB.current as any).getEchartsInstance().resize();
     }
-  }, [visibleChart]); // só roda quando a aba mudar
+  }, [visibleChart]);
 
-
-  
-  const showChart = (chart:string) => {
-    // Primeiro some com o gráfico atual
+  const showChart = (chart: string) => {
     setVisibleChart('');
-  
-    // Depois de um tempo, mostra o próximo gráfico
     setTimeout(() => {
-      setVisibleChart(chart as any); // 'A' ou 'B'
-    }, 0); // 300ms é suficiente pra dar a sensação de transição
+      setVisibleChart(chart as any);
+    }, 0);
   };
 
   useEffect(() => {
     const analysisSerie = ({
-      name: analyse.id+' variation',
+      name: analyse.id + ' variation',
       type: "line",
-      data: analyse.analiticalpoints.map((x, index) => [
-        x.toFixed(4),
-        analyse.pvbtPoints[index].toFixed(4),
-      ]),
+      data: analyse.analiticalpoints ? analyse.analiticalpoints.map((x, index) => [
+        x?.toFixed(4) || 0,
+        analyse.pvbtPoints?.[index]?.toFixed(4) || 0,
+      ]) : [],
       color: "#" + Math.floor(Math.random() * 16777215).toString(16),
       showSymbol: true,
       smooth: true,
@@ -76,14 +73,7 @@ const ChartComponent = () => {
         ],
       } : null,
     });
-    setChartOptionsA( {
-      title: {
-        text: "PVBt Behavior",
-        left: "center",
-        textStyle: {
-          color: "#333",
-        },
-      },
+    setChartOptionsA({
       tooltip: {
         trigger: "axis",
       },
@@ -93,50 +83,47 @@ const ChartComponent = () => {
         top: '10%'
       },
       grid: {
-        bottom: 60, // espaço suficiente pros labels do eixo X
-        left: 50,
-        right: 100,
-        top: 50
+        bottom: 40,
+        left: 40,
+        right: 40,
+        top: 30
       },
       xAxis: {
-        name: analyse.id?analyse.id:'analyzed',
-        type: xisLog ? "log" : "value", // Agora o eixo X é categórico
+        name: analyse.id ? analyse.id : 'analyzed',
+        nameLocation: 'middle',
+        nameGap: 25,
+        type: xisLog ? "log" : "value",
         min: xdefinedLimit ? xLimit[0] : undefined,
         max: xdefinedLimit ? xLimit[1] : undefined,
+        splitLine: { show: grid }
       },
       yAxis: {
-          name: "PVBt",
-          type: yisLog? "log" : "value",
-          min: ydefinedLimit ? yLimit[0] : undefined,
-          max: ydefinedLimit ? yLimit[1] : undefined,
+        name: "PVBt",
+        type: yisLog ? "log" : "value",
+        min: ydefinedLimit ? yLimit[0] : undefined,
+        max: ydefinedLimit ? yLimit[1] : undefined,
+        splitLine: { show: grid }
       },
       series: analysisSerie,
-
     });
-  }, [analyse, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit]);
-  
+  }, [analyse, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, grid]);
 
-
-
-
-
-
-  useEffect(() =>{
+  useEffect(() => {
     const allCurvesSeries = curves.map((curve) => ({
-      name: curve.id, // Usa o ID da curva como nome na legenda
+      name: curve.id,
       type: "line",
-      data: curve.flowratePoints.map((x, index) => [x.toFixed(4), curve.pvbtPoints[index].toFixed(4)]), // Mapeia X e Y
-      color: "#" + Math.floor(Math.random() * 16777215).toString(16), // Gera cor aleatória
+      data: curve.flowratePoints ? curve.flowratePoints.map((x, index) => [x?.toFixed(4) || 0, curve.pvbtPoints?.[index]?.toFixed(4) || 0]) : [],
+      color: "#" + Math.floor(Math.random() * 16777215).toString(16),
       showSymbol: true,
       smooth: true,
       markPoint: opt ? {
         data: [
           {
-            type: "min", // 🔥 Marca automaticamente o ponto mínimo da série
+            type: "min",
             name: "Mínimo",
-            symbolSize: 30, // Tamanho do marcador
+            symbolSize: 30,
             label: {
-              formatter: "optimum: {@[1]}", // Exibe o valor do eixo Y
+              formatter: "optimum: {@[1]}",
               position: "top",
               color: "#fff",
               backgroundColor: "#24a424",
@@ -144,29 +131,19 @@ const ChartComponent = () => {
               borderRadius: 5,
             },
             itemStyle: {
-              color: "#24a424", // Cor do marcador
+              color: "#24a424",
             },
           },
         ],
-      }: null,
+      } : null,
     }));
-  // Configuração do gráfico
-    setChartOptions( {
-      title: {
-        text: "PVBt Chart",
-        left: "center",
-        textStyle: {
-          color: "#333",
-        },
-      },
+    
+    setChartOptions({
       tooltip: {
         trigger: "axis",
         formatter: (params: TooltipComponentFormatterCallbackParams | TooltipComponentFormatterCallbackParams[]) => {
-          
           const paramArray = Array.isArray(params) ? params : [params];
-          
-          let tooltipContent = `${(paramArray[0] as any).axisValue ?? ""}<br/>`; // Valor do eixo X
-        
+          let tooltipContent = `${(paramArray[0] as any).axisValue ?? ""}<br/>`;
           paramArray.forEach((item) => {
             tooltipContent += `
               <div style="display: flex; align-items: center;">
@@ -175,7 +152,6 @@ const ChartComponent = () => {
               </div>
             `;
           });
-        
           return tooltipContent;
         }
       },
@@ -184,103 +160,95 @@ const ChartComponent = () => {
         right: 10,
         top: '10%'
       },
+      grid: {
+        bottom: 40,
+        left: 40,
+        right: 40,
+        top: 30
+      },
       xAxis: {
         name: "Flowrate",
+        nameLocation: 'middle',
+        nameGap: 25,
         type: xisLog ? "log" : "value",
         min: xdefinedLimit ? xLimit[0] : undefined,
         max: xdefinedLimit ? xLimit[1] : undefined,
+        splitLine: { show: grid }
       },
       yAxis: {
-          name: "PVBt",
-          type: yisLog? "log" : "value",
-          min: ydefinedLimit ? yLimit[0] : undefined,
-          max: ydefinedLimit ? yLimit[1] : undefined,
+        name: "PVBt",
+        type: yisLog ? "log" : "value",
+        min: ydefinedLimit ? yLimit[0] : undefined,
+        max: ydefinedLimit ? yLimit[1] : undefined,
+        splitLine: { show: grid }
       },
       series: allCurvesSeries,
     });
-  },[curves, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit]);
-  return (
-    <div className="max-w-full p-4 px-0 pt-0 bg-white shadow-md rounded-sm border-3 border-dashed border-gray-500">
-      <div className="divide-x">
-        <button className={`bg-blue-400 p-[0.2vw] border-b cursor-pointer hover:bg-blue-700 px-[0.4vw] shadow-sm ${visibleChart === 'A'?'bg-blue-700':''}`} onClick={() => showChart('A')}>PVBt Chart</button>
-        <button className={`bg-blue-400 p-[0.2vw] border-b cursor-pointer hover:bg-blue-700 px-[0.4vw] shadow-sm ${visibleChart === 'B'?'bg-blue-700':''}`} onClick={() => showChart('B')}>Analysis Chart</button>
-      </div>
-      <div className="max-w-full py-2 px-2 bg-gray-200 flex items-center space-x-[0.5vw]  mb-[2vh] text-nowrap overflow-x-auto border-b border-dashed pb-1">
-        <div className="flex items-center justify-center w-fit space-x-1 me-4">
-          <input checked={opt} onChange={(e)=>setOpt(e.target.checked)} type="checkbox" />
-          <label htmlFor="">PVBt Optimum</label>
-        </div>
-        <div className="flex items-center justify-center w-fit space-x-1">
-          <input checked={xisLog} onChange={(e)=>setxIsLog(e.target.checked)} type="checkbox" />
-          <label htmlFor="" >X-Log</label>
-        </div>
-        <div className="flex items-center justify-center w-fit space-x-1">
-          <input checked={yisLog} onChange={(e)=>setyIsLog(e.target.checked)} type="checkbox" />
-          <label htmlFor="" >Y-Log</label>
-        </div>
-        <div className="flex space-x-2 items-center justify-center w-fit">
-          <input checked={xdefinedLimit} onChange={(e)=> setxDefinedLimit(e.target.checked)}  type="checkbox" />
-          <label htmlFor="">X Limites:</label>
-          <input
-              value={xLimit[0]}
-              onChange={(e) => {
-                const newLimit = [...xLimit];
-                newLimit[0] = (e.target.value);
-                setxLimit(newLimit);
-              }}
-              className=" max-w-[2vw] px-0.5" 
-              placeholder="min" 
-              type="text" 
-              />
-          <input 
-              value={xLimit[1]}
-              onChange={(e) => {
-                const newLimit = [...xLimit];
-                newLimit[1] = (e.target.value);
-                setxLimit(newLimit);
-              }} 
-              className=" max-w-[2vw]  px-0.5" 
-              placeholder="max" 
-              type="text" 
-              />
-        </div>
-        <div className="flex space-x-2 items-center justify-center w-fit">
-          <input checked={ydefinedLimit} onChange={(e)=> setyDefinedLimit(e.target.checked)}  type="checkbox" />
-          <label htmlFor="">Y Limites:</label>
-          <input
-              value={yLimit[0]}
-              onChange={(e) => {
-                const newLimit = [...yLimit];
-                newLimit[0] = (e.target.value);
-                setyLimit(newLimit);
-              }} 
-              className=" w-1/6 px-0.5" 
-              placeholder="min" 
-              type="text" 
-              />
-          <input
-              value={yLimit[1]}
-              onChange={(e) => {
-                const newLimit = [...yLimit];
-                newLimit[1] = (e.target.value);
-                setyLimit(newLimit);
-              }}  
-              className=" w-1/6 px-0.5" 
-              placeholder="max" 
-              type="text" 
-              />
-        </div>
-      </div>
-      <div className="min-h-[50vh]">
-      {visibleChart === 'A' && (
-          <ReactECharts option={chartOptions} ref={chartRefA} notMerge={true} style={{ height: "50vh", width: "100%" }} />
-        )}
+  }, [curves, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, grid]);
 
+  return (
+    <section className="blueprint" style={{ padding: '14px 16px 16px', background: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="seg">
+          <label className="seg-opt">
+            <input type="radio" name="chart-tab" value="pvbt" checked={visibleChart === 'A'} onChange={() => showChart('A')} />
+            PVBt Chart
+          </label>
+          <label className="seg-opt">
+            <input type="radio" name="chart-tab" value="analysis" checked={visibleChart === 'B'} onChange={() => showChart('B')} />
+            Analysis Chart
+          </label>
+        </div>
+        <span style={{ flex: 1 }}></span>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={opt} onChange={(e) => setOpt(e.target.checked)} />PVBt Optimum
+        </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={xisLog} onChange={(e) => setxIsLog(e.target.checked)} />X-Log
+        </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={yisLog} onChange={(e) => setyIsLog(e.target.checked)} />Y-Log
+        </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={grid} onChange={(e) => setGrid(e.target.checked)} />Grid
+        </label>
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+          <label><input type="checkbox" checked={xdefinedLimit} onChange={(e) => setxDefinedLimit(e.target.checked)} /> X Limits:</label>
+          {xdefinedLimit && (
+            <>
+              <input type="text" className="input" style={{ width: '60px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder="min" value={xLimit[0]} onChange={(e) => setxLimit([e.target.value, xLimit[1]])} />
+              <input type="text" className="input" style={{ width: '60px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder="max" value={xLimit[1]} onChange={(e) => setxLimit([xLimit[0], e.target.value])} />
+            </>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+          <label><input type="checkbox" checked={ydefinedLimit} onChange={(e) => setyDefinedLimit(e.target.checked)} /> Y Limits:</label>
+          {ydefinedLimit && (
+            <>
+              <input type="text" className="input" style={{ width: '60px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder="min" value={yLimit[0]} onChange={(e) => setyLimit([e.target.value, yLimit[1]])} />
+              <input type="text" className="input" style={{ width: '60px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder="max" value={yLimit[1]} onChange={(e) => setyLimit([yLimit[0], e.target.value])} />
+            </>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', margin: '16px 2px 6px' }}>
+        <h5 style={{ margin: 0, fontSize: '18px', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{visibleChart === 'A' ? "PVBt Chart" : "Analysis Chart"}</h5>
+        <span className="text-muted" style={{ fontSize: '11.5px' }}>{visibleChart === 'A' ? "Pore volumes injected to breakthrough vs. injection rate" : "PVBt at fixed flowrate across the swept parameter"}</span>
+      </div>
+
+      <div style={{ width: '100%', height: '400px' }}>
+        {visibleChart === 'A' && (
+          <ReactECharts option={chartOptions} ref={chartRefA} notMerge={true} style={{ height: "100%", width: "100%" }} />
+        )}
         {visibleChart === 'B' && (
-          <ReactECharts option={chartOptionsA} ref={chartRefB} notMerge={true} style={{ height: "50vh", width: "100%" }} />
+          <ReactECharts option={chartOptionsA} ref={chartRefB} notMerge={true} style={{ height: "100%", width: "100%" }} />
         )}
       </div>
-    </div>
+    </section>
   );
 };
 

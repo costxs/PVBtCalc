@@ -2,39 +2,50 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "../redux/store";
 
-export default function InletSection(){
-    const {core_diameter, core_length} = useSelector((state:RootState)=>state.setup)
-    const [mi, setMi] = useState<number>(0);
-    const [k, setK] = useState<number>(0);
-    const [q0max, setQ0max] = useState<number>(0);
-    const [backPressure, setBackPressure] = useState<number>(0);
-    const [inletPressure, setInletPressure] = useState<number>(0);
+export default function InletSection() {
+  const { core_diameter, core_length } = useSelector((state: RootState) => state.setup)
+  const [mi, setMi] = useState<number | string>("");
+  const [k, setK] = useState<number | string>("");
+  const [q0max, setQ0max] = useState<number | string>("");
+  const [backPressure, setBackPressure] = useState<number | string>("");
+  const [inletPressure, setInletPressure] = useState<number>(0);
 
-
-    const calculatePressure = () => {
-        const radius = core_diameter / 2;
-        const area = Math.PI * Math.pow(radius, 2);
-        const deltap = (q0max * mi * core_length) / (k * area);
-        const iPValue = Number(deltap) + Number(backPressure);
-        console.log(backPressure)
-        console.log(deltap)
-        console.log(iPValue)
-        setInletPressure(iPValue);
-      };
-    return(
-        <>
-            <div className="space-y-[0.5vw] font-semibold">
-                <label htmlFor="">Flowrate, (cm³/min)</label>
-                <input type="text" className="bg-slate-700 text-white p-2 w-full shadow-md rounded" value={q0max} onChange={(e)=>setQ0max(e.target.value as any)} />
-                <label htmlFor="">Viscosity, cP</label>
-                <input type="text" className="bg-slate-700 text-white p-2 w-full shadow-md rounded" value={mi} onChange={(e)=>setMi(e.target.value as any)}/>
-                <label htmlFor="">Permeability, mD</label>
-                <input type="text" className="bg-slate-700 text-white p-2 w-full shadow-md rounded" value={k} onChange={(e)=>setK(e.target.value as any)}/>
-                <label htmlFor="">Backpressure, psi</label>
-                <input type="text" className="bg-slate-700 text-white p-2 w-full shadow-md rounded" value={backPressure} onChange={(e)=>setBackPressure(e.target.value as any)}/>
-                <button className="p-2 bg-lime-600 shadow-md rounded w-full cursor-pointer hover:scale-105 active:scale-100" onClick={calculatePressure}>Estimate Inlet Pressure</button>
-                <div>Inlet Pressure: {inletPressure? Number(inletPressure).toFixed(3):0}</div>
-            </div>
-        </>
-    )
+  const calculatePressure = () => {
+    const radius = core_diameter / 2;
+    const area = Math.PI * Math.pow(radius, 2);
+    const deltap = (Number(q0max) * Number(mi) * core_length) / (Number(k) * area);
+    const iPValue = Number(deltap) + Number(backPressure);
+    setInletPressure(iPValue);
+  };
+  
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px 14px' }}>
+        <div className="field">
+          <label>Flowrate <span className="text-muted">(cm³/min)</span></label>
+          <input className="input" value={q0max} onChange={(e) => setQ0max(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Viscosity <span className="text-muted">(cP)</span></label>
+          <input className="input" value={mi} onChange={(e) => setMi(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Permeability <span className="text-muted">(mD)</span></label>
+          <input className="input" value={k} onChange={(e) => setK(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Backpressure <span className="text-muted">(psi)</span></label>
+          <input className="input" value={backPressure} onChange={(e) => setBackPressure(e.target.value)} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
+        <button className="btn btn-dark" style={{ letterSpacing: '0.06em', textTransform: 'uppercase', padding: '9px 18px', borderRadius: '9px' }} onClick={calculatePressure}>Estimate inlet pressure</button>
+        <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+          <span className="text-muted" style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Inlet pressure</span>
+          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '22px', color: 'var(--color-accent-700)' }}>{inletPressure ? Number(inletPressure).toFixed(3) : 0}</span>
+        </span>
+      </div>
+      <p className="text-muted" style={{ margin: '12px 0 0', fontSize: '11.5px' }}>Δp = q · μ · L / (k · A), with A from the core diameter of the run setup; inlet pressure adds the backpressure.</p>
+    </div>
+  )
 }

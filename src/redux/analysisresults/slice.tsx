@@ -9,7 +9,7 @@ export const fetchAnalitical = createAsyncThunk("analysis/fetch", async (_, {get
     const setupEntries = Object.entries(setup);
     console.log(setupEntries)
     // Removendo o primeiro e o último item
-    const response = await fetch("https://pvbtcalcapi-production.up.railway.app/pvbtanalitical", {
+    const response = await fetch("http://127.0.0.1:8000/pvbtanalitical", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
