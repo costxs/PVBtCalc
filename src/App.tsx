@@ -5,14 +5,10 @@ import ResultTab from "./components/Results"
 import ExpSection from "./components/ExpPoints"
 import OptimalAnalysis from "./components/OptimumAnalysis"
 import AboutSection from "./components/AboutSection"
-import { useSelector } from "react-redux"
-import { RootState } from "./redux/store"
-import LoginScreen from "./components/Login"
 import FooterSection from "./components/Footer"
 import { useState } from "react"
 
 function App() {
-  const user = useSelector((state:RootState)=> state.user)
   const [currentTab, setCurrentTab] = useState('runner');
 
   return (
