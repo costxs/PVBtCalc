@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import handleAuthError from "../services/fetchAuth";
+import { API_BASE } from "../../services/api";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchCurve = createAsyncThunk("curve/fetch", async (_, {getState, dispatch}) => {
     const state = getState() as RootState
@@ -9,7 +10,7 @@ export const fetchCurve = createAsyncThunk("curve/fetch", async (_, {getState, d
     const setupEntries = Object.entries(setup);
     // Removendo o primeiro e o último item
     const filteredSetup = Object.fromEntries(setupEntries.slice(1, -1));
-    const response = await fetch("http://localhost:8000/pvbtcurve", {
+    const response = await fetch(`${API_BASE}/pvbtcurve`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

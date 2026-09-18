@@ -1,12 +1,13 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import handleAuthError from "../services/fetchAuth";
+import { API_BASE } from "../../services/api";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchLogin = createAsyncThunk("login/fetch", async ({username, password}:{username:string; password:string},{dispatch}) => {
     const formData = new URLSearchParams();
     formData.append("username",username);
     formData.append("password",password);
   
-    const response = await fetch("http://localhost:8000/auth/", {
+    const response = await fetch(`${API_BASE}/auth/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",

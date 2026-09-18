@@ -3,6 +3,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import handleAuthError from "../services/fetchAuth";
 import { fetchRadialCurve } from "../radial/slice";
+import { API_BASE } from "../../services/api";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchParam = createAsyncThunk("param/fetch", async (_, {getState,dispatch}) => {
     const state = getState() as RootState
@@ -11,7 +12,7 @@ export const fetchParam = createAsyncThunk("param/fetch", async (_, {getState,di
     const setupEntries = Object.entries(setup);
     // Removendo o primeiro e o último item
     const filteredSetup = Object.fromEntries(setupEntries.slice(1, -3));
-    const response = await fetch("http://localhost:8000/getparameters", {
+    const response = await fetch(`${API_BASE}/getparameters`, {
       method: "POST",
       headers: {
         Authorization:`Bearer ${token}`,

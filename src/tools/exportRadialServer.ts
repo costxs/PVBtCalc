@@ -16,8 +16,7 @@
 
 import type { Curve } from "../redux/storageresults/slice";
 import { saveBlob } from "./directoryExport";
-
-const API_BASE = "http://localhost:8000";
+import { API_BASE } from "../services/api";
 
 export type FigureSize = "single" | "double";
 

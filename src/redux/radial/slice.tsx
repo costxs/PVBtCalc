@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import handleAuthError from "../services/fetchAuth";
 import { computeBeta, ftToLambda, lambdaToFt, lambdaToSkin, L_CHAR } from "./targetConversion";
+import { API_BASE } from "../../services/api";
 
 export type FlowRegime = "linear" | "radial";
 export type TargetMode = "length" | "skin";
@@ -81,7 +82,7 @@ export const fetchSkinEvolution = createAsyncThunk("radial/fetchSkin", async (_,
     target: radial.targetsLambda?.[0] ?? 5.0
   };
 
-  const response = await fetch("http://localhost:8000/skinevolution", {
+  const response = await fetch(`${API_BASE}/skinevolution`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -132,7 +133,7 @@ export const fetchDesignPlot = createAsyncThunk("radial/fetchDesignPlot", async 
     temperatures_to_compare: radial.designTemperatures,
   };
 
-  const response = await fetch("http://localhost:8000/designplot", {
+  const response = await fetch(`${API_BASE}/designplot`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -188,7 +189,7 @@ export const fetchRadialCurve = createAsyncThunk("radial/fetch", async (_, { get
     },
   };
 
-  const response = await fetch("http://localhost:8000/pvbtradialcurve", {
+  const response = await fetch(`${API_BASE}/pvbtradialcurve`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

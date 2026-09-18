@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import handleAuthError from "../services/fetchAuth";
+import { API_BASE } from "../../services/api";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchAnalitical = createAsyncThunk("analysis/fetch", async (_, {getState,dispatch}) => {
     const state = getState() as RootState
@@ -19,7 +20,7 @@ export const fetchAnalitical = createAsyncThunk("analysis/fetch", async (_, {get
     const setupEntries = Object.entries(setup);
     console.log(setupEntries)
     // Removendo o primeiro e o último item
-    const response = await fetch("http://localhost:8000/pvbtanalitical", {
+    const response = await fetch(`${API_BASE}/pvbtanalitical`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
