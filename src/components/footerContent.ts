@@ -70,7 +70,7 @@ export const footerContentEn: FooterContentData = {
       authors: 'Douglas Fonseca, Silvério Sirotheau Corrêa Neto, Pedro Tupã Pandava Aum',
       links: {
         linkedin: {
-          url: 'https://www.linkedin.com/',
+          url: 'https://www.linkedin.com/in/douglas-fonseca-43287342b',
           ariaLabel: 'LinkedIn de Douglas Fonseca',
         },
         github: {
@@ -129,7 +129,7 @@ export const footerContentPt: FooterContentData = {
       authors: 'Douglas Fonseca, Silvério Sirotheau Corrêa Neto, Pedro Tupã Pandava Aum',
       links: {
         linkedin: {
-          url: 'https://www.linkedin.com/',
+          url: 'https://www.linkedin.com/in/douglas-fonseca-43287342b',
           ariaLabel: 'LinkedIn de Douglas Fonseca',
         },
         github: {
