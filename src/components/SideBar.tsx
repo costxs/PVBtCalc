@@ -40,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
         PVBt<span style={{ color: 'var(--color-accent-400)' }}>Calc</span>
       </div>
       <div style={{ font: '400 10px/1.4 var(--font-body)', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(238, 241, 244, 0.5)', marginTop: '6px' }}>Acid Core Flooding</div>
-      
+
       <svg viewBox="0 0 150 44" style={{ width: '100%', height: '40px', margin: '18px 0 26px', overflow: 'visible' }}>
         <path d="M4 4 C 30 40, 60 42, 78 30 C 100 15, 124 8, 146 6" fill="none" stroke="#94bce3" strokeWidth="1.6"></path>
         <circle cx="78" cy="30" r="3" fill="none" stroke="#94bce3" strokeWidth="1.2"></circle>

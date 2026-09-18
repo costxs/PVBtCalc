@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
 import { RootState } from "../store";
 import handleAuthError from "../services/fetchAuth";
+import { fetchRadialCurve } from "../radial/slice";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchParam = createAsyncThunk("param/fetch", async (_, {getState,dispatch}) => {
     const state = getState() as RootState
@@ -10,7 +11,7 @@ export const fetchParam = createAsyncThunk("param/fetch", async (_, {getState,di
     const setupEntries = Object.entries(setup);
     // Removendo o primeiro e o último item
     const filteredSetup = Object.fromEntries(setupEntries.slice(1, -3));
-    const response = await fetch("https://pvbtcalc-back.onrender.com/getparameters", {
+    const response = await fetch("http://localhost:8000/getparameters", {
       method: "POST",
       headers: {
         Authorization:`Bearer ${token}`,
@@ -56,6 +57,22 @@ const parametersSlice = createSlice({
         })
         .addCase(fetchParam.rejected, ()=>{
 
+        })
+        // Modo Radial nao chama fetchParam (o endpoint /getparameters e
+        // Linear-only: espera core_diameter/core_length, nao a geometria
+        // radial) -- em vez disso, /pvbtradialcurve devolve o bloco de
+        // parametros junto da resposta principal (ver RadialAdjustedParameters
+        // em redux/radial/slice.tsx) e este reducer o consome aqui.
+        .addCase(fetchRadialCurve.fulfilled, (state, action) => {
+            const params = action.payload["parameters"];
+            if (!params) return;
+            state.ro = params["ro"];
+            state.X = params["X"];
+            state.x = params["x"];
+            state.n = params["n"];
+            state.a = params["a"];
+            state.b = params["b"];
+            state.k0 = params["k0"];
         })
   },
 });

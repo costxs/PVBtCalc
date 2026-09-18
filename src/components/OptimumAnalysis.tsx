@@ -32,7 +32,7 @@ export default function OptimalAnalysis() {
         <span style={{ flex: 1, height: '1px', background: 'var(--color-divider)' }}></span>
       </div>
       
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: '10px', alignItems: 'end' }}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
         <div className="field">
           <label>Sweep parameter</label>
           <select className="input" value={analitical_param} onChange={e => dispatch(setParam(e.target.value))}>

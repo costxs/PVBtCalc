@@ -9,7 +9,7 @@ export const fetchCurve = createAsyncThunk("curve/fetch", async (_, {getState, d
     const setupEntries = Object.entries(setup);
     // Removendo o primeiro e o último item
     const filteredSetup = Object.fromEntries(setupEntries.slice(1, -1));
-    const response = await fetch("https://pvbtcalc-back.onrender.com/pvbtcurve", {
+    const response = await fetch("http://localhost:8000/pvbtcurve", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -43,6 +43,12 @@ const resultSlice = createSlice({
     timeToBt:[],
     wormholeVelocity:[],
     darcyVelocity:[],
+    // Janela de validade da vazao no regime linear (Fase 6). Arrays paralelos
+    // a flowratePoints (SoA), mesmo padrao que radial/slice.tsx. metadata em
+    // cm3/min; null quando o backend nao achou q_opt interior (degradacao).
+    statusPoints: [] as string[],
+    withinValidityRange: [] as boolean[],
+    metadata: null as Record<string, number> | null,
     loading:false,
     error:false,
     processed:false,
@@ -85,6 +91,9 @@ const resultSlice = createSlice({
             state.timeToBt = action.payload['timetobt'];
             state.wormholeVelocity = action.payload['wormholevelocity'];
             state.darcyVelocity = action.payload['darcyvelocity'];
+            state.statusPoints = action.payload['status'];
+            state.withinValidityRange = action.payload['within_validity_range'];
+            state.metadata = action.payload['metadata'];
         })
         .addCase(fetchCurve.rejected, (state)=>{
             state.loading = false;

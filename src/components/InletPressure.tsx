@@ -20,7 +20,7 @@ export default function InletSection() {
   
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px 14px' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-[12px_14px]">
         <div className="field">
           <label>Flowrate <span className="text-muted">(cm³/min)</span></label>
           <input className="input" value={q0max} onChange={(e) => setQ0max(e.target.value)} />

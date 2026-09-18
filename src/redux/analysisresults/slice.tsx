@@ -4,12 +4,22 @@ import handleAuthError from "../services/fetchAuth";
 // 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchAnalitical = createAsyncThunk("analysis/fetch", async (_, {getState,dispatch}) => {
     const state = getState() as RootState
-    const setup = state.optSetup
+    const setup = { ...state.optSetup } as any
+    const radial = state.radial
+    
+    if (radial.flowRegime === 'radial') {
+      setup.flow_regime = 'radial';
+      setup.target_mode = radial.targetMode;
+      setup.target = radial.targetsLambda?.[0] ?? 5.0;
+      setup.wellbore_radius_in = radial.wellboreSize;
+      setup.payzone_thickness_ft = radial.payzoneThickness;
+    }
+    
     const token = state.user.token
     const setupEntries = Object.entries(setup);
     console.log(setupEntries)
     // Removendo o primeiro e o último item
-    const response = await fetch("https://pvbtcalc-back.onrender.com/pvbtanalitical", {
+    const response = await fetch("http://localhost:8000/pvbtanalitical", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

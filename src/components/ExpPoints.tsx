@@ -31,7 +31,7 @@ export default function ExpSection() {
 
   const handleSetPoint = () => {
     const updatedCurve = { ...expCurve };
-    updatedCurve.pvbtPoints = [...updatedCurve.pvbtPoints, parseFloat(currentPVBt)];
+    updatedCurve.pvbtPoints = [...(updatedCurve.pvbtPoints ?? []), parseFloat(currentPVBt)];
     updatedCurve.flowratePoints = [...updatedCurve.flowratePoints, parseFloat(currentFlow)];
     updatedCurve.intersticialVelocity = [...updatedCurve.intersticialVelocity, 0];
     updatedCurve.iDa = [...updatedCurve.iDa, 0];
@@ -46,7 +46,7 @@ export default function ExpSection() {
 
   const handleRemovePoint = (index: number) => {
     const updatedCurve = { ...expCurve };
-    updatedCurve.pvbtPoints = updatedCurve.pvbtPoints.filter((_, i) => i !== index);
+    updatedCurve.pvbtPoints = (updatedCurve.pvbtPoints ?? []).filter((_, i) => i !== index);
     updatedCurve.flowratePoints = updatedCurve.flowratePoints.filter((_, i) => i !== index);
     updatedCurve.intersticialVelocity = updatedCurve.intersticialVelocity.filter((_, i) => i !== index);
     updatedCurve.iDa = updatedCurve.iDa.filter((_, i) => i !== index);
@@ -99,7 +99,7 @@ export default function ExpSection() {
 
   const data = expCurve.flowratePoints.map((flow, index) => [
     flow,
-    expCurve.pvbtPoints[index] ?? ''
+    expCurve.pvbtPoints?.[index] ?? ''
   ]);
 
   return (
@@ -115,7 +115,7 @@ export default function ExpSection() {
         <input className="input" placeholder="id" value={currentID} onChange={(e) => setCurrentID(e.target.value)} />
       </div>
       
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', alignItems: 'end' }}>
+      <div className="flex flex-col sm:grid sm:grid-cols-[1fr_1fr_auto] gap-[10px] sm:items-end">
         <div className="field">
           <label>Flowrate <span className="text-muted">(cm³/min)</span></label>
           <input type="number" className="input" placeholder="Flowrate" value={currentFlow} onChange={(e) => setCurrentFlow(e.target.value)} />

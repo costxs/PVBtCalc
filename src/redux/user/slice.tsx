@@ -6,7 +6,7 @@ export const fetchLogin = createAsyncThunk("login/fetch", async ({username, pass
     formData.append("username",username);
     formData.append("password",password);
   
-    const response = await fetch("https://pvbtcalc-back.onrender.com/auth/", {
+    const response = await fetch("http://localhost:8000/auth/", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
