@@ -36,6 +36,10 @@ const parametersSlice = createSlice({
     a:0,
     b:0,
     k0:0,
+    // Flowing fraction -- so o Radial devolve isso (RadialAdjustedParameters
+    // em redux/radial/slice.tsx); /getparameters (Linear, tools.py:getparam)
+    // nao inclui, fica em 0 default nesse regime.
+    f:0,
    },
   reducers: {
 
@@ -73,6 +77,7 @@ const parametersSlice = createSlice({
             state.a = params["a"];
             state.b = params["b"];
             state.k0 = params["k0"];
+            state.f = params["f"];
         })
   },
 });

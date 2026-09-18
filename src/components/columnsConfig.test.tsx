@@ -158,7 +158,7 @@ describe("columnsConfig — keys unicas em cada builder", () => {
     expectUniqueKeys(buildDesignTable(null, null).columns);
   });
 
-  it("buildDesignTable calcula tempo_bombeio e volume_total", () => {
+  it("buildDesignTable calcula tbt_min e volume_total", () => {
     const designData = {
       series: [
         {
@@ -169,7 +169,7 @@ describe("columnsConfig — keys unicas em cada builder", () => {
       ]
     };
     const { rows } = buildDesignTable(designData, 30);
-    expect(rows[0].tempo_bombeio).toBeCloseTo(12 / 0.5);
+    expect(rows[0].tbt_min).toBeCloseTo(12 / 0.5);
     expect(rows[0].volume_total).toBeCloseTo(12 * 30);
   });
 });

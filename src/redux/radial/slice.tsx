@@ -34,6 +34,7 @@ export interface RadialAdjustedParameters {
   a: number;
   b: number;
   k0: number;
+  f: number;
 }
 
 export interface RadialCurveResult {
@@ -200,10 +201,24 @@ export const fetchRadialCurve = createAsyncThunk("radial/fetch", async (_, { get
   return data;
 });
 
+// Bug (2026-09): flowRegime nunca era persistido -- resetava pra "linear"
+// em toda recarga, mesmo com curvas radiais salvas em resultCurves
+// (storageresults/slice.tsx, que ESSE sim persiste via localStorage). O
+// filtro por regime em Chart.tsx/Results.tsx (ver comentarios la) so evita
+// misturar curvas de regimes diferentes; sem restaurar flowRegime tambem,
+// o usuario cai sempre na aba Linear e as curvas radiais ficam "escondidas"
+// (filtradas fora) ate ele trocar manualmente pra Radial de novo.
+const FLOW_REGIME_STORAGE_KEY = "radialFlowRegime";
+
+function loadPersistedFlowRegime(): FlowRegime {
+  const raw = localStorage.getItem(FLOW_REGIME_STORAGE_KEY);
+  return raw === "radial" ? "radial" : "linear";
+}
+
 const radialSlice = createSlice({
   name: "radial",
   initialState: {
-    flowRegime: "linear" as FlowRegime,
+    flowRegime: loadPersistedFlowRegime() as FlowRegime,
     wellboreSize: 3,
     wellboreSizeMode: "diameter" as WellboreSizeMode,
     payzoneThickness: 1,
@@ -232,6 +247,7 @@ const radialSlice = createSlice({
   reducers: {
     setFlowRegime: (state, action) => {
       state.flowRegime = action.payload;
+      localStorage.setItem(FLOW_REGIME_STORAGE_KEY, action.payload);
     },
     setRadialGeometry: (state, action) => {
       const { wellboreSize, wellboreSizeMode, payzoneThickness, drainageRadius } = action.payload;
@@ -293,6 +309,36 @@ const radialSlice = createSlice({
     removeDesignTemperature: (state, action) => {
       state.designTemperatures.splice(action.payload, 1);
     },
+    // Item 3 (cache/persistencia): "abrir" uma simulacao radial salva no
+    // IndexedDB (tools/simulationStoreIO.ts) restaura o grafico/tabela com
+    // os dados EXATOS congelados naquele snapshot -- curves/design/skin ja
+    // vem prontos do chamador (curves convertidas de volta pro formato
+    // RadialCurveResult via exportSimulations.toRawRadialCurve, MESMA
+    // funcao que o export ja usava). lastRunSetup e so o minimo pra
+    // isActiveRadialRun/export tratarem essa simulacao como valida depois.
+    // NAO toca wellboreSize/targetsLambda/etc: se o usuario depois visitar
+    // as abas Design/Skin, Chart.tsx ja refaz o fetch com a config ATUAL do
+    // formulario (comportamento existente, fora de escopo mudar aqui).
+    restoreRadialSnapshot: (state, action) => {
+      const p = action.payload as {
+        simulationId: string;
+        curves: RadialCurveResult[];
+        designSeries: { temperature_k: number; optimum_rate_series: number[][]; optimum_volume_series: number[][] }[] | null;
+        skinSeries: Record<string, { x: number; y: number; l_ft: number }[]> | null;
+        rock: string; acid: string; concentration: number | null; porosity: number | null;
+      };
+      state.flowRegime = "radial";
+      localStorage.setItem(FLOW_REGIME_STORAGE_KEY, "radial");
+      state.curves = p.curves;
+      state.designPlotData = p.designSeries ? { series: p.designSeries } : null;
+      state.skinEvolutionData = p.skinSeries ?? {};
+      state.processed = true;
+      state.error = false;
+      state.lastRunSetup = {
+        id: p.simulationId, rock_type: p.rock, acid_type: p.acid,
+        acid_concentration: p.concentration, core_porosity: p.porosity,
+      };
+    },
   },
   extraReducers(builder) {
     builder
@@ -339,5 +385,5 @@ const radialSlice = createSlice({
   },
 });
 
-export const { setFlowRegime, setRadialGeometry, setTargetMode, addTarget, removeTarget, resetRadial, addSkinFlowrate, removeSkinFlowrate, clearSkinChartData, setLastRunState, setRadialTemperatureK, addDesignTemperature, removeDesignTemperature } = radialSlice.actions;
+export const { setFlowRegime, setRadialGeometry, setTargetMode, addTarget, removeTarget, resetRadial, addSkinFlowrate, removeSkinFlowrate, clearSkinChartData, setLastRunState, setRadialTemperatureK, addDesignTemperature, removeDesignTemperature, restoreRadialSnapshot } = radialSlice.actions;
 export default radialSlice.reducer;

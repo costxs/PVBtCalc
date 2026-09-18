@@ -1,17 +1,19 @@
 import { useState } from "react";
 import {fetchLogin} from "../redux/user/slice";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../redux/store";
 export default function LoginScreen(){
     const [password, setPassword] = useState("");
     const [username, setUsername] = useState("");
     const dispatch = useDispatch()
+    const isPt = useSelector((state: RootState) => state.ui.language) === "pt";
     const handleLogin = () => {
         if (!username) {
-            alert("Preencha o nome de usário");
+            alert(isPt ? "Preencha o nome de usuário" : "Enter your username");
             return;
         }
         if (!password){
-            alert("Preenchar a senha");
+            alert(isPt ? "Preencha a senha" : "Enter your password");
             return;
         }
         dispatch(fetchLogin({username, password}) as any);
@@ -28,8 +30,8 @@ export default function LoginScreen(){
                     </div>
                 </div>
                 <div className="space-y-5 flex flex-col w-[50%]">
-                    <input type="text" name="" value={username} onChange={(e)=> setUsername(e.target.value)} id="" className="bg-white  rounded-lg h-[2rem] shadow-md p-1 ps-5" placeholder="Usuário"/>
-                    <input type="password" name="" value={password} onChange={(e)=> setPassword(e.target.value)} id="" className="bg-white rounded-lg h-[2rem] shadow-md p-1 ps-5" placeholder="Senha"/>
+                    <input type="text" name="" value={username} onChange={(e)=> setUsername(e.target.value)} id="" className="bg-white  rounded-lg h-[2rem] shadow-md p-1 ps-5" placeholder={isPt ? "Usuário" : "Username"}/>
+                    <input type="password" name="" value={password} onChange={(e)=> setPassword(e.target.value)} id="" className="bg-white rounded-lg h-[2rem] shadow-md p-1 ps-5" placeholder={isPt ? "Senha" : "Password"}/>
                 </div>
                 <button className="uppercase bg-blue-500 p-2 font-bold rounded-2xl w-[20%] shadow-md hover:scale-110 transition-all cursor-pointer" onClick={handleLogin}>Login</button>
             </div>

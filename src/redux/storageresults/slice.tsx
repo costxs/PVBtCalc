@@ -48,6 +48,13 @@ interface Curve {
     // interior. Fase 4 adicionou statusPoints/withinValidityRange mas nunca
     // metadata; Fase 6 fecha essa lacuna (Chart.tsx/SimuCard.tsx leem daqui).
     metadata?: Record<string, number> | null;
+    // Flowing fraction (f) resolvido pelo backend para o rock_type desta
+    // curva (RadialAdjustedParameters.f, radial/slice.tsx) -- NAO vem de
+    // curve.metadata (esse e so a janela de validade, RadialCurveValidity,
+    // nunca teve chave `f`). undefined em curvas salvas antes desta chave
+    // existir (localStorage antigo) -- export deve tratar como "nao
+    // disponivel", nao como 0.
+    flowingFraction?: number | null;
   }
 
 interface CurvesState {
@@ -97,7 +104,8 @@ const curvesSlice = createSlice({
             acidVolumePoints: action.payload.acidVolumePoints,
             statusPoints: action.payload.statusPoints,
             withinValidityRange: action.payload.withinValidityRange,
-            metadata: action.payload.metadata
+            metadata: action.payload.metadata,
+            flowingFraction: action.payload.flowingFraction
         };
 
         const existingIndex = state.curves.findIndex(c => c.id === action.payload.id);

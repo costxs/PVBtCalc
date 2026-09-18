@@ -16,6 +16,7 @@ export default function AdjustedParametersCard() {
       case 'a': return 'Enhanced Permeability Zone Flow Coefficient, m²⁻²ⁿ';
       case 'b': return 'Wormhole Flow Coefficient, s/m';
       case 'k0': return 'Mass Transfer Coefficient Static Constant, 1/m²';
+      case 'f': return 'Flowing Fraction (fraction of pore volume receiving flow, by rock type)';
       default: return '';
     }
   };

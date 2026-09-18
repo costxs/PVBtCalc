@@ -7,6 +7,7 @@ import type { Curve } from '../redux/storageresults/slice'
 import { pointSeverity, SEVERITY_COLORS } from "../tools/pointSeverity";
 import DataTable from "./DataTable";
 import { buildSimulationTable, buildSkinTable, buildDesignTable } from "./columnsConfig";
+import { matchesFlowRegime } from "../tools/regimeFilter";
 
 const MARK_ERROR = SEVERITY_COLORS.error;
 const MARK_WARN = SEVERITY_COLORS.warn;
@@ -49,12 +50,24 @@ export default function ResultTab() {
   const { ids, curves } = useSelector((state: RootState) => state.resultCurves)
   const visibleChart = useSelector((state: RootState) => state.ui.visibleChart);
   const { flowRegime, skinEvolutionData, designPlotData, payzoneThickness } = useSelector((state: RootState) => state.radial);
-  const [selectedId, setSelectedId] = useState(ids.length > 0 ? ids[0] : "");
+
+  // Bug (2026-09): o dropdown "Saved run" listava TODOS os ids salvos, sem
+  // olhar o regime de origem de cada curva (Curve.flowRegime) -- ao trocar
+  // de aba (ou recarregar a pagina, que restaura curvas mas nao sempre
+  // sincroniza com a curva ativa) uma curva radial podia ficar selecionada
+  // com a UI em modo Linear e vice-versa. flowRegime ausente = curva salva
+  // antes do campo existir (legado), tratada como linear.
+  const regimeIds = ids.filter((id) => {
+    const c = (curves as any).find((cur: Curve) => cur.id === id);
+    return matchesFlowRegime(c?.flowRegime, flowRegime);
+  });
+
+  const [selectedId, setSelectedId] = useState(regimeIds.length > 0 ? regimeIds[0] : "");
   const [curve, setCurve] = useState<Curve | null>(null)
 
   const handleDelete = () => {
     dispatch(removeCurve(selectedId));
-    setSelectedId(ids[0] || "");
+    setSelectedId(regimeIds[0] || "");
   }
 
   const handleCurve = (id: any) => {
@@ -62,10 +75,11 @@ export default function ResultTab() {
   }
 
   useEffect(() => {
-    const lastId = ids[ids.length - 1];
-    setSelectedId(lastId)
+    const lastId = regimeIds[regimeIds.length - 1];
+    setSelectedId(lastId ?? "");
     handleCurve(lastId);
-  }, [ids]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flowRegime, ids]);
 
   // Fase 8: qual aba de grafico esta ativa decide a fonte de dados/colunas
   // da tabela -- design/skin so existem quando flowRegime === 'radial'
@@ -108,8 +122,8 @@ export default function ResultTab() {
             <div className="field" style={{ marginBottom: '10px' }}>
               <label>Saved run</label>
               <select className="input" value={selectedId} onChange={(e) => { handleCurve(e.target.value); setSelectedId(e.target.value) }}>
-                {ids.length === 0 && <option>No saved runs yet</option>}
-                {ids.map((id) => (
+                {regimeIds.length === 0 && <option>No saved runs yet</option>}
+                {regimeIds.map((id) => (
                   <option key={id} value={id}>{id}</option>
                 ))}
               </select>

@@ -39,6 +39,10 @@ export default function SimuSetupCard() {
   const { flowrate: iflowrate, minimum_flowrate: fflowrate, acid_concentration: aConcentration, temperature, acid_type: acidType, step_numbers, id, rock_type, core_porosity, core_length, core_diameter } = setup;
   const dataCurve = useSelector((state: RootState) => state.results)
   const radialState = useSelector((state: RootState) => state.radial)
+  // f (flowing fraction) so chega aqui via /pvbtradialcurve.parameters,
+  // consumido por parameters/slice.tsx (state.parameters) -- nunca em
+  // radialState.curves[i].metadata (esse e a janela de validade).
+  const radialParameters = useSelector((state: RootState) => state.parameters)
   const visibleChart = useSelector((state: RootState) => state.ui.visibleChart);
   const { flowRegime, wellboreSize, wellboreSizeMode, payzoneThickness, drainageRadius, targetMode, targetsLambda, skinFlowrates, radialTemperatureK, designTemperatures } = radialState;
   const wellboreRadiusIn = wellboreSizeMode === 'diameter' ? wellboreSize / 2 : wellboreSize;
@@ -109,12 +113,20 @@ export default function SimuSetupCard() {
 
   const handleFlowRegimeChange = (regime: 'linear' | 'radial') => {
     dispatch(setFlowRegime(regime));
-    if (regime === 'radial' && Number(fflowrate) === LINEAR_FLOWRATE_DEFAULTS.min && Number(iflowrate) === LINEAR_FLOWRATE_DEFAULTS.max) {
-      dispatch(setParameter({ key: 'minimum_flowrate', value: RADIAL_FLOWRATE_DEFAULTS.min }));
-      dispatch(setParameter({ key: 'flowrate', value: RADIAL_FLOWRATE_DEFAULTS.max }));
-    } else if (regime === 'linear' && Number(fflowrate) === RADIAL_FLOWRATE_DEFAULTS.min && Number(iflowrate) === RADIAL_FLOWRATE_DEFAULTS.max) {
-      dispatch(setParameter({ key: 'minimum_flowrate', value: LINEAR_FLOWRATE_DEFAULTS.min }));
-      dispatch(setParameter({ key: 'flowrate', value: LINEAR_FLOWRATE_DEFAULTS.max }));
+    if (regime === 'radial') {
+      dispatch(setVisibleChart('design'));
+      if (Number(fflowrate) === LINEAR_FLOWRATE_DEFAULTS.min && Number(iflowrate) === LINEAR_FLOWRATE_DEFAULTS.max) {
+        dispatch(setParameter({ key: 'minimum_flowrate', value: RADIAL_FLOWRATE_DEFAULTS.min }));
+        dispatch(setParameter({ key: 'flowrate', value: RADIAL_FLOWRATE_DEFAULTS.max }));
+      }
+    } else if (regime === 'linear') {
+      if (visibleChart === 'design' || visibleChart === 'skin') {
+        dispatch(setVisibleChart('A'));
+      }
+      if (Number(fflowrate) === RADIAL_FLOWRATE_DEFAULTS.min && Number(iflowrate) === RADIAL_FLOWRATE_DEFAULTS.max) {
+        dispatch(setParameter({ key: 'minimum_flowrate', value: LINEAR_FLOWRATE_DEFAULTS.min }));
+        dispatch(setParameter({ key: 'flowrate', value: LINEAR_FLOWRATE_DEFAULTS.max }));
+      }
     }
   };
 
@@ -140,11 +152,18 @@ export default function SimuSetupCard() {
 
   const isIdUsed = Boolean(id) && ids.some(existingId => existingId === id || existingId.startsWith(`${id} · `));
 
+  // Item 3 (cache/persistencia): antes isIdUsed BLOQUEAVA o calculo. Agora
+  // so avisa -- calcular com um ID ja usado pergunta (window.confirm) se
+  // quer sobrescrever a simulacao salva daquele ID; addCurve/upsertSnapshot
+  // ja fazem upsert por id (idempotente), entao sobrescrever e seguro.
   const canCalculate = flowRegime === 'radial'
-    ? Boolean(id) && targetsLambda.length > 0 && !isIdUsed && radialTemperatureK >= 283 && radialTemperatureK <= 478
-    : Boolean(id) && !isIdUsed;
+    ? Boolean(id) && targetsLambda.length > 0 && radialTemperatureK >= 283 && radialTemperatureK <= 478
+    : Boolean(id);
 
   const handleCurve = () => {
+    if (isIdUsed && !window.confirm(`Já existe uma simulação salva com o ID "${id}". Sobrescrever com este novo cálculo?`)) {
+      return;
+    }
     if (flowRegime === 'radial') {
       if (!targetsLambda.length) { setTargetError('Provide at least one target penetration value.'); return; }
       dispatch(setLastRunState({ setup, radial: radialState }));
@@ -164,6 +183,9 @@ export default function SimuSetupCard() {
   const handleReset = () => {
     dispatch(resetParameter());
     dispatch(resetRadial());
+    if (flowRegime === 'radial') {
+      dispatch(setVisibleChart('design'));
+    }
   }
 
   useEffect(() => {
@@ -204,6 +226,15 @@ export default function SimuSetupCard() {
           acidVolumePoints: c.acidvolumepoints ?? undefined,
           statusPoints: c.status,
           withinValidityRange: c.within_validity_range,
+          // Export (Fase "Exportar tudo") le q_opt daqui (readValidity) para
+          // a nota de "minimo na borda" -- faltava aqui, export.tsx sempre
+          // caia no fallback "nao disponivel".
+          metadata: c.metadata,
+          // Flowing Fraction (f): mesma logica do bug acima, mas para uma
+          // chave que nunca existiu em metadata (so RadialCurveValidity).
+          // Vem de state.parameters.f, resolvido pelo backend para o
+          // rock_type deste request (get_adjusted_parameters).
+          flowingFraction: radialParameters.f,
         }));
       });
     }
@@ -240,7 +271,7 @@ export default function SimuSetupCard() {
             <div className="field" style={{ gridColumn: 'span 3' }}>
               <label>Simulation ID</label>
               <input className="input" placeholder="1" value={id} onChange={(e) => dispatch(setParameter({ key: 'id', value: e.target.value }))} style={{ borderColor: isIdUsed ? '#c0392b' : undefined }} />
-              {isIdUsed && <div style={{ color: '#c0392b', fontSize: '11.5px', marginTop: '4px' }}>Simulation ID "{id}" is already in use.</div>}
+              {isIdUsed && <div style={{ color: '#c0392b', fontSize: '11.5px', marginTop: '4px' }}>Simulation ID "{id}" already exists — calculating will ask to overwrite it.</div>}
             </div>
             <div className="field" style={{ gridColumn: 'span 2' }}>
               <label>Rock Type</label>

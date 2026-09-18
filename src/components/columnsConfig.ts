@@ -132,10 +132,10 @@ export function buildDesignTable(
     { key: 'comprimento', label: 'comprimento', unit: 'ft', description: 'Wormhole length target' },
     { key: 'q_opt', label: 'q_opt', unit: 'gal/(ft.min)', description: 'Optimum injection rate for this length — matches the chart' },
     { key: 'V_opt', label: 'V_opt', unit: 'gal/ft', description: 'Acid volume at optimum injection rate for this length — matches the chart' },
-    // tempo_bombeio = V_opt / q_opt: gal/ft dividido por gal/(ft.min) cancela
+    // tbt_min = V_opt / q_opt: gal/ft dividido por gal/(ft.min) cancela
     // o /ft de ambos e sobra minuto puro -- NAO e min/ft, mesmo os dois
     // insumos sendo normalizados por pe.
-    { key: 'tempo_bombeio', label: 'tempo_bombeio', unit: 'min', description: 'Pumping time at optimum rate = V_opt / q_opt — plain time, not per ft: the /ft in both inputs cancels out' },
+    { key: 'tbt_min', label: 'tbt', unit: 'min', description: 'Pumping time at optimum rate = V_opt / q_opt — plain time, not per ft: the /ft in both inputs cancels out' },
     { key: 'volume_total', label: 'volume_total', unit: 'gal', description: 'Total acid volume at optimum = V_opt x payzone thickness — the absolute volume to purchase/stock; equals V_opt only when payzone thickness = 1 ft' },
     { key: 'temperatura', label: 'temperatura', unit: 'K', description: 'System temperature for this curve' },
   ];
@@ -154,7 +154,7 @@ export function buildDesignTable(
           comprimento: rate[i][1],
           q_opt,
           V_opt,
-          tempo_bombeio: q_opt ? V_opt / q_opt : null,
+          tbt_min: q_opt ? V_opt / q_opt : null,
           volume_total: payzoneThicknessFt != null ? V_opt * payzoneThicknessFt : null,
           temperatura: s.temperature_k
         });

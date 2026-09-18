@@ -1,4 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "../redux/store";
 import { SEVERITY_COLORS } from "../tools/pointSeverity";
 import { extractDesignPlotGrid, readDesignPlot, isDesignPlotOutOfRange, DesignPlotReadMode, DesignPlotReading } from "../tools/designPlotReader";
 
@@ -10,11 +12,13 @@ interface DesignPlotReaderProps {
 // Etapa 1 da leitura guiada (artigo, Secao 6.4): entra por UM eixo, devolve
 // os OUTROS DOIS -- sem desenhar as setas ainda (Etapa 2, so depois deste
 // calculo estar conferido contra o fixture, ver designPlotReader.test.ts).
-const MODE_OPTIONS: { value: DesignPlotReadMode; label: string; unit: string }[] = [
-  { value: "volume", label: "tenho", unit: "gal/ft" },
-  { value: "rate", label: "posso bombear", unit: "gal/(ft.min)" },
-  { value: "length", label: "quero", unit: "ft de wormhole" },
-];
+function getModeOptions(isPt: boolean): { value: DesignPlotReadMode; label: string; unit: string }[] {
+  return [
+    { value: "volume", label: "Acid Volume, gal/ft", unit: "gal/ft" },
+    { value: "rate", label: "Optimum Injection Rate, gal/(ft·min)", unit: "gal/(ft.min)" },
+    { value: "length", label: "Wormhole Length, ft", unit: isPt ? "ft de wormhole" : "ft of wormhole" },
+  ];
+}
 
 // Quais dois campos mostrar por modo -- sempre os DOIS que nao foram a
 // entrada (item (c) do pedido: "quero X ft -> devolve volume e q_opt").
@@ -31,12 +35,14 @@ const FIELD_META: Record<"length" | "qOpt" | "vOpt", { label: string; unit: stri
 };
 
 export default function DesignPlotReader({ series, onReadingChange }: DesignPlotReaderProps) {
+  const isPt = useSelector((state: RootState) => state.ui.language) === "pt";
   const [mode, setMode] = useState<DesignPlotReadMode>("volume");
   const [targetInput, setTargetInput] = useState("15");
   const [temperatureK, setTemperatureK] = useState(series[0]?.temperature_k ?? 0);
 
   const grid = useMemo(() => extractDesignPlotGrid(series, temperatureK), [series, temperatureK]);
-  const modeMeta = MODE_OPTIONS.find((m) => m.value === mode)!;
+  const modeOptions = getModeOptions(isPt);
+  const modeMeta = modeOptions.find((m) => m.value === mode)!;
 
   const target = Number(targetInput);
   const reading = useMemo(() => {
@@ -59,10 +65,10 @@ export default function DesignPlotReader({ series, onReadingChange }: DesignPlot
       margin: "0 2px 12px", padding: "10px 14px", border: "1px solid #ddd", borderRadius: "6px",
       display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", fontSize: "12.5px",
     }}>
-      <strong style={{ letterSpacing: "0.04em", textTransform: "uppercase", fontSize: "11px" }}>Leitura guiada</strong>
+      <strong style={{ letterSpacing: "0.04em", textTransform: "uppercase", fontSize: "11px" }}>Read from</strong>
 
       <select value={mode} onChange={(e) => setMode(e.target.value as DesignPlotReadMode)}>
-        {MODE_OPTIONS.map((m) => (
+        {modeOptions.map((m) => (
           <option key={m.value} value={m.value}>{m.label}</option>
         ))}
       </select>
@@ -75,7 +81,6 @@ export default function DesignPlotReader({ series, onReadingChange }: DesignPlot
         onChange={(e) => setTargetInput(e.target.value)}
         style={{ width: "90px" }}
       />
-      <span className="text-muted">{modeMeta.unit}</span>
 
       <select value={temperatureK} onChange={(e) => setTemperatureK(Number(e.target.value))}>
         {series.map((s) => (
@@ -84,10 +89,12 @@ export default function DesignPlotReader({ series, onReadingChange }: DesignPlot
       </select>
 
       <span style={{ marginLeft: "auto" }}>
-        {!reading && <span className="text-muted">informe um valor positivo</span>}
+        {!reading && <span className="text-muted">{isPt ? "informe um valor positivo" : "enter a positive value"}</span>}
         {reading && isDesignPlotOutOfRange(reading) && (
           <span style={{ color: SEVERITY_COLORS.warn }}>
-            fora da faixa coberta pelas curvas — {modeMeta.label} entre {reading.min.toFixed(3)} e {reading.max.toFixed(3)} {modeMeta.unit}
+            {isPt
+              ? <>fora da faixa coberta pelas curvas — {modeMeta.label} entre {reading.min.toFixed(3)} e {reading.max.toFixed(3)} {modeMeta.unit}</>
+              : <>outside the range covered by the curves — {modeMeta.label} between {reading.min.toFixed(3)} and {reading.max.toFixed(3)} {modeMeta.unit}</>}
           </span>
         )}
         {reading && !isDesignPlotOutOfRange(reading) && (
