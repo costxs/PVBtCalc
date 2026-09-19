@@ -84,8 +84,8 @@ function buildMetadataRows(curve: Curve): (string | number)[][] {
   return rows;
 }
 
-export const exportCurveAsVerticalTable = (curve: Curve) => {
-  const { columns, rows } = buildSimulationTable(curve);
+export const buildVerticalTableSheet = (curve: Curve) => {
+  const { columns, rows, isHighlighted } = buildSimulationTable(curve);
 
   const metadataRows = buildMetadataRows(curve);
   const headerRow = columns.map((c) => c.label + (c.unit ? ` (${c.unit})` : ""));
@@ -220,7 +220,8 @@ export const exportCurveAsVerticalTable = (curve: Curve) => {
   const dataStartRowIndex = colHeadersRowIndex + 1;
   for (let r = 0; r < dataRows.length; r++) {
     const isEven = r % 2 === 0;
-    const rowFillColor = isEven ? "FFFFFF" : "F4F7FB"; // zebra striping suave
+    const isRowHighlighted = isHighlighted ? isHighlighted(rows[r], r) : false;
+    const rowFillColor = isRowHighlighted ? "FFF2CC" : (isEven ? "FFFFFF" : "F4F7FB");
 
     for (let c = 0; c < columns.length; c++) {
       const cellRef = XLSX.utils.encode_cell({ r: dataStartRowIndex + r, c });
@@ -239,7 +240,12 @@ export const exportCurveAsVerticalTable = (curve: Curve) => {
 
         cell.s = {
           fill: { fgColor: { rgb: rowFillColor } },
-          font: { name: "Calibri", sz: 10.5, color: { rgb: "1F2937" } },
+          font: {
+            name: "Calibri",
+            sz: 10.5,
+            bold: isRowHighlighted,
+            color: { rgb: isRowHighlighted ? "000000" : "1F2937" },
+          },
           alignment: { horizontal: columns[c].key === 'target' ? "center" : "right", vertical: "center" },
           border: borderThin,
         };
@@ -247,6 +253,11 @@ export const exportCurveAsVerticalTable = (curve: Curve) => {
     }
   }
 
+  return worksheet;
+};
+
+export const exportCurveAsVerticalTable = (curve: Curve) => {
+  const worksheet = buildVerticalTableSheet(curve);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, `Curve_${curve.id}`.slice(0, 31));
 

@@ -13,7 +13,7 @@ import { splitByValidity, collectValidityOffenders, readValidity, fmtBblMin, fmt
 import { resolveAxisLimit } from "../tools/axisLimits";
 import { SEVERITY_COLORS } from "../tools/pointSeverity";
 import { setVisibleChart } from "../redux/ui/slice";
-import { matchesFlowRegime } from "../tools/regimeFilter";
+import { selectLinearChartCurves, selectRadialChartCurves, toValidityAwareCurves } from "../tools/chartCurveSelectors";
 
 // Rotulos do crosshair do Design Plot (guidedReadingMarkPointData, abaixo):
 // toFixed(3)/toFixed(4) fixo produzia "15.000" -- em pt-BR (ponto de milhar)
@@ -119,32 +119,6 @@ const ChartComponent = () => {
   const visibleChart = useSelector((state: RootState) => state.ui.visibleChart);
   const isPt = useSelector((state: RootState) => state.ui.language) === 'pt';
 
-  // Resumo agregado (contagem + pior ponto) para o banner de validade.
-  // Barato; radialCurves so muda num novo Calculate.
-  const radialValidity = flowRegime === 'radial'
-    ? collectValidityOffenders(radialCurves)
-    : { count: 0, curvesAffected: 0, worst: null };
-
-  // Fase 7.5: mesmo resumo do banner radial, agora no ramo linear. O store
-  // linear (storageresults) usa chaves camelCase; collectValidityOffenders
-  // espera o contrato ValidityAwareCurve (snake_case, igual ao radial), entao
-  // adaptamos aqui -- passar `curves` cru era no-op silencioso (flowratepoints/
-  // within_validity_range undefined => nenhum ponto contava). id da curva entra
-  // como target_label pra "em N curvas" / "na curva X" funcionarem igual ao
-  // radial. Nenhum calculo novo: mesma funcao, mesmo metadata do backend.
-  const linearValidity = flowRegime === 'linear'
-    ? collectValidityOffenders(
-        curves
-          .filter(c => c.flowratePoints && c.flowratePoints.length > 0)
-          .map(c => ({
-            target_label: c.id,
-            flowratepoints: c.flowratePoints,
-            within_validity_range: c.withinValidityRange,
-            metadata: c.metadata ?? null,
-          }))
-      )
-    : { count: 0, curvesAffected: 0, worst: null };
-
   const chartRefA = useRef(null);
   const chartRefB = useRef(null);
   const chartRefDesign = useRef(null);
@@ -224,6 +198,37 @@ const ChartComponent = () => {
     if (keys.length > 0) setSkinActiveFlowrates(new Set(keys));
   }, [skinEvolutionData]);
 
+  // Selector unico por regime: exatamente as curvas que o Simulation Chart
+  // desenha. Banner de validade e desenho do grafico leem DESTE MESMO array
+  // -- nunca dois filtros paralelos, que foi como divergiram (banner linear
+  // lia `curves` cru, sem o filtro de regime que o desenho ja tinha, e uma
+  // curva radial sobrevivente em state.resultCurves vazava pro banner
+  // Linear). radial: so as curvas com chip ligado (simActiveTargets), igual
+  // ao que allCurvesSeries desenha. linear: mesmo filtro de regime +
+  // flowratePoints que o ramo de desenho usa (matchesFlowRegime).
+  const radialChartCurves = useMemo(
+    () => selectRadialChartCurves(radialCurves, simActiveTargets),
+    [radialCurves, simActiveTargets],
+  );
+  const linearChartCurves = useMemo(
+    () => selectLinearChartCurves(curves),
+    [curves],
+  );
+
+  // Resumo agregado (contagem + pior ponto) para o banner de validade,
+  // sempre sobre *ChartCurves acima (o que esta de fato no grafico).
+  const radialValidity = flowRegime === 'radial'
+    ? collectValidityOffenders(radialChartCurves)
+    : { count: 0, curvesAffected: 0, worst: null };
+
+  // Fase 7.5: mesmo resumo do banner radial, agora no ramo linear. O store
+  // linear (storageresults) usa chaves camelCase; collectValidityOffenders
+  // espera o contrato ValidityAwareCurve (snake_case, igual ao radial) --
+  // toValidityAwareCurves adapta.
+  const linearValidity = flowRegime === 'linear'
+    ? collectValidityOffenders(toValidityAwareCurves(linearChartCurves))
+    : { count: 0, curvesAffected: 0, worst: null };
+
   const [xdefinedLimit, setxDefinedLimit] = useState(false);
   const [ydefinedLimit, setyDefinedLimit] = useState(false);
   const [xLimit, setxLimit] = useState(['', '']);
@@ -243,11 +248,9 @@ const ChartComponent = () => {
       // Bug (2026-09): sem o filtro de regime, uma curva radial salva
       // (sobrevive a reload via localStorage) entrava nesse array e podia
       // virar a sugestao de Y-Log do grafico Linear com base em magnitudes
-      // de outro regime -- mesma causa-raiz do filtro em validCurves (linha
-      // ~690, ramo de desenho da serie).
-      const linearCurves = curves.filter(c => matchesFlowRegime(c.flowRegime, 'linear'));
-      const ys = linearCurves
-        .filter(c => c.flowratePoints && c.flowratePoints.length > 0)
+      // de outro regime. linearChartCurves ja aplica esse filtro (mesmo
+      // selector usado pelo desenho da serie e pelo banner de validade).
+      const ys = linearChartCurves
         .flatMap(c => {
           const pts = (c.outputMode === 'volume' ? c.acidVolumePoints : c.pvbtPoints) || [];
           const within = c.withinValidityRange || [];
@@ -256,7 +259,7 @@ const ChartComponent = () => {
       return spansOrders(ys);
     }
     return null;
-  }, [visibleChart, flowRegime, analyse.pvbtPoints, curves]);
+  }, [visibleChart, flowRegime, analyse.pvbtPoints, linearChartCurves]);
 
   // Aplica a sugestao enquanto o usuario nao tiver mexido na checkbox Y-Log.
   // setyIsLog com o mesmo valor e no-op no React -- sem loop com os effects
@@ -456,9 +459,8 @@ const ChartComponent = () => {
       // Quadro de controle (chips por alvo, ver JSX) substitui a legenda:
       // curva desligada nem entra em solids/dasheds (Y-log range e a serie
       // de otimo tambem reagem, so isso -- nenhum dado recalculado).
-      const allCurvesSeries = radialCurves.flatMap((curve, ci) => {
+      const allCurvesSeries = radialChartCurves.flatMap((curve, ci) => {
         const curveColor = CURVE_PALETTE[ci % CURVE_PALETTE.length];
-        if (!simActiveTargets.has(curve.target_label)) return [];
         const fps = curve.flowratepoints || [];
         const { solid, dashed, bandBelow, bandAbove } = splitByValidity(
           fps,
@@ -701,7 +703,7 @@ const ChartComponent = () => {
       // aqui igual e era desenhada como se fosse linear -- flowRegime
       // undefined so existe em curvas salvas ANTES do campo existir
       // (legado), tratadas como linear por serem dessa epoca.
-      const validCurves = curves.filter(curve => matchesFlowRegime(curve.flowRegime, 'linear') && curve.flowratePoints && curve.flowratePoints.length > 0);
+      const validCurves = linearChartCurves;
       const allOutputModes = validCurves.map((curve) => curve.outputMode).filter(Boolean);
       const allVolume = allOutputModes.length > 0 && allOutputModes.every((m) => m === 'volume');
       const yAxisName = allVolume ? "Acid Volume (gal)" : "PVBt";
@@ -883,7 +885,7 @@ const ChartComponent = () => {
         series: allCurvesSeries,
       });
     }
-  }, [curves, radialCurves, flowRegime, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, xLimit, yLimit, grid, simActiveTargets, simShowOptimumPath]);
+  }, [linearChartCurves, radialChartCurves, radialCurves, flowRegime, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, xLimit, yLimit, grid, simActiveTargets, simShowOptimumPath]);
 
   useEffect(() => {
     if (visibleChart === 'design' && flowRegime === 'radial' && designPlotData?.series?.length) {
@@ -1466,20 +1468,20 @@ const ChartComponent = () => {
               <strong>{linearValidity.count} {linearValidity.count === 1 ? 'ponto' : 'pontos'}</strong>
               {' '}em {linearValidity.curvesAffected} {linearValidity.curvesAffected === 1 ? 'curva' : 'curvas'}
               {' '}fora da janela validada pelo artigo (±1 ordem de grandeza em torno de q_opt).{' '}
-              Pior caso: <strong>{fmtBblMin(linearValidity.worst.flowrate)} cm³/min</strong>
+              Pior caso: <strong>{fmtBblMin(linearValidity.worst.flowrate)} {linearValidity.worst.unit}</strong>
               {' '}na curva “{linearValidity.worst.label}” — {fmtRatio(linearValidity.worst.ratio)}×{' '}
               {linearValidity.worst.boundary === 'upper' ? 'acima do limite superior' : 'abaixo do limite inferior'}
-              {' '}({fmtBblMin(linearValidity.worst.limit)} cm³/min).
+              {' '}({fmtBblMin(linearValidity.worst.limit)} {linearValidity.worst.unit}).
             </>
           ) : (
             <>
               <strong>{linearValidity.count} {linearValidity.count === 1 ? 'point' : 'points'}</strong>
               {' '}across {linearValidity.curvesAffected} {linearValidity.curvesAffected === 1 ? 'curve' : 'curves'}
               {' '}fall outside the window validated by the paper (±1 order of magnitude around q_opt).{' '}
-              Worst case: <strong>{fmtBblMin(linearValidity.worst.flowrate)} cm³/min</strong>
+              Worst case: <strong>{fmtBblMin(linearValidity.worst.flowrate)} {linearValidity.worst.unit}</strong>
               {' '}on curve “{linearValidity.worst.label}” — {fmtRatio(linearValidity.worst.ratio)}×{' '}
               {linearValidity.worst.boundary === 'upper' ? 'above the upper limit' : 'below the lower limit'}
-              {' '}({fmtBblMin(linearValidity.worst.limit)} cm³/min).
+              {' '}({fmtBblMin(linearValidity.worst.limit)} {linearValidity.worst.unit}).
             </>
           )}
         </div>
