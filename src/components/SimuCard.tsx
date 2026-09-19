@@ -160,12 +160,21 @@ export default function SimuSetupCard() {
     ? Boolean(id) && targetsLambda.length > 0 && radialTemperatureK >= 283 && radialTemperatureK <= 478
     : Boolean(id);
 
+  // Radial: depois de calcular, o botao vira "Calculated" (cinza, desabilitado)
+  // ate o Simulation ID mudar. Guarda o ID do ultimo run; `processed` garante
+  // que Reset (resetRadial) libere o botao de novo.
+  const [radialCalculatedId, setRadialCalculatedId] = useState<string | null>(null);
+  const radialAlreadyCalculated =
+    flowRegime === 'radial' && radialState.processed && radialCalculatedId === id;
+
   const handleCurve = () => {
+    if (radialAlreadyCalculated) return;
     if (isIdUsed && !window.confirm(`Já existe uma simulação salva com o ID "${id}". Sobrescrever com este novo cálculo?`)) {
       return;
     }
     if (flowRegime === 'radial') {
       if (!targetsLambda.length) { setTargetError('Provide at least one target penetration value.'); return; }
+      setRadialCalculatedId(id);
       dispatch(setLastRunState({ setup, radial: radialState }));
       dispatch((fetchRadialCurve() as any));
       if (skinFlowrates.length > 0) {
@@ -484,8 +493,8 @@ export default function SimuSetupCard() {
         )}
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-          <button className="btn btn-green" disabled={!canCalculate} style={{ letterSpacing: '0.06em', textTransform: 'uppercase', padding: '9px 20px', borderRadius: '9px', backgroundColor: canCalculate ? '#268045' : '#3f7d55' }} onClick={handleCurve}>
-            Calculate
+          <button className="btn btn-green" disabled={!canCalculate || radialAlreadyCalculated} style={{ letterSpacing: '0.06em', textTransform: 'uppercase', padding: '9px 20px', borderRadius: '9px', backgroundColor: radialAlreadyCalculated ? '#7a8580' : canCalculate ? '#268045' : '#3f7d55', cursor: radialAlreadyCalculated ? 'not-allowed' : undefined }} onClick={handleCurve}>
+            {radialAlreadyCalculated ? 'Calculated' : 'Calculate'}
           </button>
           <button className="btn btn-amber" style={{ letterSpacing: '0.06em', textTransform: 'uppercase', borderRadius: '9px', backgroundColor: '#DF831A' }} onClick={handleReset}>Reset parameters</button>
           <span style={{ flex: 1 }}></span>
