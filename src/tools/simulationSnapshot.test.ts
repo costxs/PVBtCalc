@@ -95,7 +95,6 @@ describe("enforceSnapshotLimits", () => {
       makeSnapshot({ id: "oldest", savedAt: 1, rock: big }),
       makeSnapshot({ id: "newest", savedAt: 2, rock: big }),
     ];
-    // limite pequeno: so cabe 1 registro grande
     const { keep, evicted } = enforceSnapshotLimits(all, 50, 1200);
     expect(keep.map((s) => s.id)).toEqual(["newest"]);
     expect(evicted.map((s) => s.id)).toEqual(["oldest"]);

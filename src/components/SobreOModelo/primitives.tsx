@@ -1,8 +1,5 @@
 import React from 'react';
 
-// Estilos compartilhados pelas duas linguas -- mudar o visual de uma
-// equacao/tabela/callout aqui muda para PT e EN ao mesmo tempo, que e
-// exatamente a divergencia que este arquivo existe para evitar.
 export const sobreOModeloStyles = `
 .som-content h2 { font: 600 19px/1.3 var(--font-heading); letter-spacing: 0.03em; margin: 32px 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--color-divider); color: var(--color-accent-900); }
 .som-content h2:first-of-type { margin-top: 0; }

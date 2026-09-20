@@ -10,10 +10,6 @@ const linearMeta = {
   validity_max_cm3_min: 45.8,
 };
 
-// Numeros do bug reportado: "420.0 cm3/min ... 115x acima do limite superior
-// (3.65 cm3/min)" -- na verdade gal/(ft.min) do sweep radial anterior (10
-// bbl/min = 420 gal/(ft.min) no topo, mascarado de cm3/min pelo hardcode
-// no JSX do banner Linear).
 const radialMeta = {
   q_opt_gal_ft_min: 0.365,
   validity_min_gal_ft_min: 0.0365,
@@ -85,12 +81,6 @@ describe("selectRadialChartCurves", () => {
   });
 });
 
-// Cenario exato do bug reportado: Linear mostrando UMA curva (0.5-10 cm3/min,
-// dentro da janela 0.46-45.8), com uma curva Radial de uma rodada anterior
-// (10 bbl/min = 420 gal/(ft.min) no topo do sweep) ainda em state.resultCurves.
-// O banner Linear contava os pontos da curva Radial e rotulava o valor
-// gal/(ft.min) como "cm3/min". Com o filtro de regime restaurado (mesmo
-// selector usado pelo desenho), a curva Radial nunca chega no banner Linear.
 describe("cenario do bug: banner Linear nao deve contar curva Radial leftover", () => {
   const linearInWindow = curve({
     id: "L1",
@@ -120,17 +110,10 @@ describe("cenario do bug: banner Linear nao deve contar curva Radial leftover", 
   });
 
   it("sem o filtro de regime (comportamento antigo, com bug) o leftover Radial vazava pro banner", () => {
-    // Documenta o bug que este selector corrige: passar `mixedCurves` cru
-    // (sem selectLinearChartCurves) reproduz o "726 pontos em 20 curvas" --
-    // aqui, 1 ponto (420) da curva Radial contaria como se fosse Linear.
     const buggySummary = collectValidityOffenders(toValidityAwareCurves(mixedCurves));
     expect(buggySummary.count).toBe(1);
     expect(buggySummary.worst).toMatchObject({ label: "2 · 5.00 ft", flowrate: 420, boundary: "upper" });
     expect(buggySummary.worst!.ratio).toBeCloseTo(420 / 3.65, 5);
-    // A unidade correta (do metadata da curva Radial) ja era gal/(ft.min) --
-    // o segundo bug (JSX hardcoding "cm3/min") esta em Chart.tsx, fora do
-    // alcance de um teste DOM-free; corrigido lendo worst.unit em vez de
-    // um literal.
     expect(buggySummary.worst!.unit).toBe("gal/(ft.min)");
   });
 });

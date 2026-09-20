@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import handleAuthError from "../services/fetchAuth";
 import { API_BASE } from "../../services/api";
-// 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchLogin = createAsyncThunk("login/fetch", async ({username, password}:{username:string; password:string},{dispatch}) => {
     const formData = new URLSearchParams();
     formData.append("username",username);
@@ -20,7 +19,6 @@ export const fetchLogin = createAsyncThunk("login/fetch", async ({username, pass
     return data;
   });
 
-// 🔹 Criando o Slice do Redux
 const loginSlice = createSlice({
   name: "user",
   initialState: { logged: !!localStorage.getItem("tokenPVBtCalc"), token:localStorage.getItem("tokenPVBtCalc"), username:localStorage.getItem("usernamePVBtCalc"), loading: false, error: false },

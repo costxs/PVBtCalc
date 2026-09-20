@@ -1,30 +1,13 @@
-/**
- * simulationSnapshot.ts
- * ------------------------------------------------------------------
- * Regras PURAS (sem IndexedDB, sem I/O) do cache de simulacoes -- schema,
- * merge de patch parcial (upsert) e decisao de quais registros evictar por
- * limite de espaco. Separado de simulationStoreIO.ts (que so chama
- * idb-keyval em cima dessas funcoes) pra ficar testavel sem precisar de um
- * IndexedDB de verdade (o ambiente de teste deste projeto roda em Node puro,
- * sem jsdom/indexedDB).
- *
- * Guarda EXATAMENTE o que o backend/redux ja tem -- Curve[] camelCase (a
- * MESMA forma que resultCurves/slice.tsx persiste), design_series/skin_series
- * crus. Nenhum valor recalculado aqui. Nunca guarda imagens (pedido
- * explicito).
- */
 import type { Curve } from "../redux/storageresults/slice";
 import type { FlowRegime } from "../redux/radial/slice";
 
 export const SCHEMA_VERSION = 1;
 export const MAX_SIMULATIONS = 50;
-export const MAX_TOTAL_BYTES = 50 * 1024 * 1024; // ~50MB, pedido explicito
+export const MAX_TOTAL_BYTES = 50 * 1024 * 1024;
 
 export interface SimulationSnapshot {
   schemaVersion: number;
   id: string;
-  /** Nome exibido na lista -- editavel ("renomear"), comeca == id. Nunca
-   * usado pra casar com Curve.id/target_label (esses continuam intocados). */
   label: string;
   flowRegime: FlowRegime;
   createdAt: number;
@@ -33,14 +16,10 @@ export interface SimulationSnapshot {
   acid: string;
   porosity: number | null;
   concentration: number | null;
-  /** Como a curva original guarda (Celsius linear / Kelvin radial) -- sem
-   * conversao aqui, mesma convencao do resto do app. */
   temperature: number | null;
   targets: string[];
   curves: Curve[];
-  /** So radial. null quando a simulacao ainda nao passou pela aba Design. */
   designSeries: unknown[] | null;
-  /** So radial. null quando ainda nao passou pela aba Skin (ou nao tem vazao configurada). */
   skinSeries: Record<string, { x: number; y: number; l_ft: number }[]> | null;
 }
 
@@ -72,11 +51,6 @@ function emptySnapshot(id: string, flowRegime: FlowRegime, now: number): Simulat
   };
 }
 
-/** Upsert parcial: campos ausentes (undefined) no patch preservam o valor
- * ja salvo (ou o default, se e a primeira vez) -- assim uma curva radial
- * pode ser salva primeiro e o Design/Skin (que chegam depois, so quando o
- * usuario visita aquelas abas) chega em patches SEPARADOS sem apagar o que
- * ja estava la. label/createdAt nunca regridem por um patch automatico. */
 export function mergeSnapshotPatch(
   existing: SimulationSnapshot | undefined,
   patch: SnapshotPatch,
@@ -108,9 +82,6 @@ export interface EvictionResult {
   evicted: SimulationSnapshot[];
 }
 
-/** Mantem os N mais recentes (savedAt desc) respeitando MAX_SIMULATIONS e
- * MAX_TOTAL_BYTES; sempre mantem pelo menos 1 registro (o mais recente),
- * mesmo que ele sozinho passe do limite de bytes -- nunca apaga tudo. */
 export function enforceSnapshotLimits(
   all: SimulationSnapshot[],
   maxCount: number = MAX_SIMULATIONS,

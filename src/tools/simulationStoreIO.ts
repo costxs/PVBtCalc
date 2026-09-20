@@ -1,12 +1,3 @@
-/**
- * simulationStoreIO.ts
- * ------------------------------------------------------------------
- * Camada de I/O (IndexedDB via idb-keyval) em cima das regras puras de
- * simulationSnapshot.ts. Sem logica de negocio aqui -- so get/set/del e o
- * aviso de evicao. Nao coberto por teste unitario (precisaria de um
- * IndexedDB de verdade / fake-indexeddb); validado manualmente rodando o
- * app (ver resumo da entrega).
- */
 import { createStore, get, set, del, values, clear } from "idb-keyval";
 import {
   isCompatibleSchema, mergeSnapshotPatch, enforceSnapshotLimits,
@@ -17,11 +8,6 @@ const DB_NAME = "pvbtcalc-simulations";
 const STORE_NAME = "simulations";
 const store = createStore(DB_NAME, STORE_NAME);
 
-/** Disparado quando o upsert precisa evictar simulacoes antigas por limite
- * de espaco -- "nunca apagar sem avisar" (pedido explicito). A aba EXPORT
- * escuta isso enquanto estiver montada; se a evicao acontecer com a aba
- * fechada, o aviso e perdido (limite generoso -- 50 sims / ~50MB -- torna
- * isso raro), mas o dado em si nunca some sem essa tentativa de aviso. */
 export const SIMULATION_EVICTED_EVENT = "pvbtcalc:simulations-evicted";
 
 export interface SimulationsEvictedDetail {
@@ -34,8 +20,6 @@ async function readAllCompatible(): Promise<SimulationSnapshot[]> {
   return all.filter(isCompatibleSchema);
 }
 
-/** Upsert parcial -- ver mergeSnapshotPatch (campos ausentes preservam o
- * valor ja salvo). Chamado automaticamente ao fim de cada calculo. */
 export async function upsertSnapshot(patch: SnapshotPatch): Promise<void> {
   const existingRaw = await get<SimulationSnapshot>(patch.id, store);
   const existing = isCompatibleSchema(existingRaw) ? existingRaw : undefined;

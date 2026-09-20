@@ -1,27 +1,5 @@
 import { ColumnConfig } from "./DataTable";
 
-/**
- * columnsConfig.ts (Fase 8)
- * ------------------------------------------------------------------
- * Cada aba do painel 05 monta seu proprio conjunto ordenado de colunas
- * para o DataTable -- NUNCA Object.keys() de um objeto de dados. Estes
- * builders sao funcoes puras (sem React/redux) de proposito: dai serem
- * testaveis direto (ver columnsConfig.test.tsx, que trava keys unicas em
- * cada um). Consumidos por Results.tsx.
- *
- * A aba Analysis Chart NAO tem builder proprio: reusa buildSimulationTable
- * (so trocou Object.keys() por columnsConfig, nao redesenhou o conjunto).
- */
-
-// Fase 8: colunas da aba Simulation/Analysis. Linear fica IDENTICO ao que ja
-// existia (fora de escopo da Fase 8, que e sobre o modo Radial); so o radial
-// ganha a ordem/unidades novas: q0/V_A/target primeiro (mesmas unidades do
-// grafico, Fase 8), depois iv/wv/dv/1-Da/tbt/PVBt de apoio.
-//
-// PVBt so e omitida quando outputMode==='volume' -- desde a Fase 9 o backend
-// (/pvbtradialcurve) devolve output_mode "volume" quando nao ha
-// geometry.drainage_radius_ft (RadialCurveMaster.output_mode); antes disso
-// saia "pvbt" chumbado e este ramo era codigo morto.
 export function buildSimulationTable(curve: any): { columns: ColumnConfig[]; rows: Record<string, any>[]; markerColumnKey?: string; isHighlighted: (row: Record<string, any>, i: number) => boolean; optimumField: 'PVBt' | 'V_A' } {
   const isRadial = curve?.flowRegime === 'radial';
   const isVolumeMode = isRadial && curve?.outputMode === 'volume';
@@ -55,10 +33,6 @@ export function buildSimulationTable(curve: any): { columns: ColumnConfig[]; row
 
   const rows = flowratePoints.map((q0: number, i: number) => ({
     q0,
-    // radial sempre popula acidVolumePoints (backend, ja em gal/ft -- Fase
-    // 1); linear so populava isto no branch morto de isVolumeMode (nunca
-    // dispara hoje -- ver nota acima) e NUNCA em volumeToBt, que la e cm3,
-    // nao gal -- sem fallback aqui para nao vazar essa unidade errada.
     V_A: curve?.acidVolumePoints?.[i] ?? null,
     target: curve?.targetLabel,
     PVBt: curve?.pvbtPoints?.[i] ?? null,
@@ -86,21 +60,9 @@ export function buildSimulationTable(curve: any): { columns: ColumnConfig[]; row
   };
 }
 
-// Fase 8: aba Skin Evolution. Fonte: radial.skinEvolutionData (varias
-// curvas, uma por flowrate digitado em "Flowrates to compare") -- achata
-// todas em UMA tabela, q0 vira coluna de apoio distinguindo a curva de
-// origem de cada linha (em vez de um seletor de curva por cima da tabela).
-// q0 fica em bbl/min: mesma unidade do input e da legenda do grafico
-// (Chart.tsx `${q} bbl/min`), que esta etapa nao mexeu. Rotulo "q0 (input)"
-// deixa explicito que e a vazao de ENTRADA que define a curva (rotulo, nao
-// dado do ponto) -- pra ninguem cruzar com a coluna q0 da aba Simulation,
-// que e gal/(ft.min) e e o eixo X varrido.
 export function buildSkinTable(skinEvolutionData: Record<string, { x: number; y: number; l_ft: number }[]>): { columns: ColumnConfig[]; rows: Record<string, any>[] } {
   const columns: ColumnConfig[] = [
     { key: 'V_A', label: 'V_A', unit: 'gal/ft', description: 'Acid Volume to Breakthrough, normalized per ft of payzone — matches the chart X axis' },
-    // skin fica na faixa -1..-5; 1 casa ('-3.7') nao resolve contra a
-    // planilha de validacao ('-3.7136'). 3 casas explicitas aqui, sem
-    // depender do defaultFormat do DataTable.
     { key: 'skin', label: 'skin', description: 'Equivalent skin — matches the chart Y axis', format: (v) => (v == null ? '-' : Number(v).toFixed(3)) },
     { key: 'comprimento', label: 'comprimento', unit: 'ft', description: 'Wormhole length swept for this point' },
     { key: 'q0', label: 'q0 (input)', unit: 'bbl/min', description: 'Input flowrate that defines this curve (not a per-point value) — stays in bbl/min like the input and the chart legend; not comparable to the q0 column in the Simulation tab, which is gal/(ft·min)' },
@@ -113,17 +75,6 @@ export function buildSkinTable(skinEvolutionData: Record<string, { x: number; y:
   return { columns, rows };
 }
 
-// Fase 8: aba Design Plot. Fonte: radial.designPlotData -- duas series
-// paralelas (optimum_rate_series/optimum_volume_series), MESMO indice/laco
-// no backend (generate_design_plot varre o mesmo comprimentos_ft para as
-// duas) -- zip por indice aqui e so consumo, nao recalculo. "temperatura"
-// (apoio) nao vem no payload: e o escalar unico da run atual
-// (setup.temperature -- Design Plot nao varre temperatura), repetido em
-// toda linha.
-// payzoneThicknessFt: valor de geometry.payzone_thickness_ft usado no fetch
-// atual (radial.payzoneThickness) -- so serve pra converter V_opt (gal/ft)
-// em galoes absolutos; nao chumbar 1 aqui, senao volume_total sempre igual
-// a V_opt (o proprio bug que a coluna existe pra evitar).
 export function buildDesignTable(
   designPlotData: { series: { temperature_k: number, optimum_rate_series: number[][]; optimum_volume_series: number[][] }[] } | null,
   payzoneThicknessFt?: number | null
@@ -132,9 +83,6 @@ export function buildDesignTable(
     { key: 'comprimento', label: 'comprimento', unit: 'ft', description: 'Wormhole length target' },
     { key: 'q_opt', label: 'q_opt', unit: 'gal/(ft.min)', description: 'Optimum injection rate for this length — matches the chart' },
     { key: 'V_opt', label: 'V_opt', unit: 'gal/ft', description: 'Acid volume at optimum injection rate for this length — matches the chart' },
-    // tbt_min = V_opt / q_opt: gal/ft dividido por gal/(ft.min) cancela
-    // o /ft de ambos e sobra minuto puro -- NAO e min/ft, mesmo os dois
-    // insumos sendo normalizados por pe.
     { key: 'tbt_min', label: 'tbt', unit: 'min', description: 'Pumping time at optimum rate = V_opt / q_opt — plain time, not per ft: the /ft in both inputs cancels out' },
     { key: 'volume_total', label: 'volume_total', unit: 'gal', description: 'Total acid volume at optimum = V_opt x payzone thickness — the absolute volume to purchase/stock; equals V_opt only when payzone thickness = 1 ft' },
     { key: 'temperatura', label: 'temperatura', unit: 'K', description: 'System temperature for this curve' },
@@ -162,7 +110,6 @@ export function buildDesignTable(
     }
   }
 
-  // Intercalar (agrupar) por comprimento para facilitar a comparacao entre temperaturas
   rows.sort((a, b) => a.comprimento - b.comprimento);
 
   return { columns, rows };

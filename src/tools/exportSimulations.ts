@@ -1,20 +1,3 @@
-/**
- * exportSimulations.ts
- * ------------------------------------------------------------------
- * Agrupa state.resultCurves.curves (uma linha por curva/alvo) em
- * "simulacoes" para a aba EXPORT: radial agrupa pelo prefixo do id antes de
- * " · " (mesma convencao que Chart.tsx ja usa pra filtrar
- * radialSimulationCurves); linear e 1 curva = 1 simulacao (nao ha
- * agrupamento por id no modelo linear).
- *
- * toRawRadialCurve reconstroi o formato RadialCurveResult (snake_case) que o
- * backend espera a partir da Curve camelCase salva em resultCurves -- so
- * troca de forma, nenhum calculo novo. Isso permite exportar QUALQUER
- * simulacao radial ja salva (nao so a rodada ATIVA em radialState, que so
- * guarda design_series/skin_series da ULTIMA rodada) com a aba Simulation
- * completa + figura; Design/Skin so entram quando a simulacao selecionada e
- * a rodada ativa (unica fonte que o app guarda pra esses dois).
- */
 import type { Curve } from "../redux/storageresults/slice";
 import type { RadialExportPayload } from "./exportRadialServer";
 
@@ -82,8 +65,6 @@ export function toRawRadialCurve(c: Curve): any {
   };
 }
 
-/** true so pra simulacao radial cujo id bate com a rodada ATIVA de radialState
- * -- unica que tem design_series/skin_series disponiveis (ver cabecalho). */
 export function isActiveRadialRun(group: SimulationGroup, radialState: any): boolean {
   return group.flowRegime === "radial" && !!radialState?.lastRunSetup?.id && radialState.lastRunSetup.id === group.simId;
 }

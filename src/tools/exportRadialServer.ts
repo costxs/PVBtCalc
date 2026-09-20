@@ -1,18 +1,3 @@
-/**
- * exportRadialServer.ts
- * ------------------------------------------------------------------
- * Export radial via backend (/export/radial, /export/radial/figures) --
- * figuras matplotlib (PNG 300 dpi) embutidas no workbook + pacote de
- * figuras separado. So monta o payload e chama a rota; QUEM DESENHA e
- * quem monta o .xlsx e o backend (app/services/export_plots.py,
- * export_workbook.py) a partir dos MESMOS dados que este arquivo ja tem em
- * memoria -- nada e recalculado aqui nem la.
- *
- * Item 8 do pedido: enquanto a rota nao estiver validada em produção, o
- * export client-side (export.tsx, exportRadialAll) continua disponivel
- * como FALLBACK -- Chart.tsx tenta o servidor primeiro e cai pro client-side
- * so se a chamada falhar (rede fora, servidor fora, erro 4xx/5xx).
- */
 
 import type { Curve } from "../redux/storageresults/slice";
 import { saveBlob } from "./directoryExport";
@@ -43,8 +28,8 @@ export interface RadialExportPayload {
     targets_label: string;
     flowing_fraction: number | null;
   };
-  curves: any[]; // RadialCurveResult cru (radialState.curves) -- mesmo shape que o backend ja devolve
-  design_series: any[]; // designPlotData.series cru
+  curves: any[];
+  design_series: any[];
   skin_series: Record<string, { x: number; y: number; l_ft: number }[]>;
   options: {
     target_lengths?: number[] | null;
@@ -63,10 +48,6 @@ export interface RadialExportPayload {
   };
 }
 
-// Espelha buildRadialInputsRows (export.tsx) -- mesma fonte (curves de
-// state.resultCurves, nao radialState.curves cru, que nao tem
-// rock/acid/porosity/concentration/temperature) -- so troca o formato de
-// saida (chaves snake_case pro Pydantic, sem string formatada).
 export function buildRadialExportPayload(
   radialState: any,
   simulationCurves: Curve[],

@@ -23,13 +23,12 @@ function getInitialVisibleChart(): string {
       return "design";
     }
   } catch {
-    // ignore
   }
   return "A";
 }
 
 const initialState: UiState = {
-  visibleChart: getInitialVisibleChart(), // 'A' = Simulation, 'B' = Analysis, 'design' = Design Plot, 'skin' = Skin Evolution
+  visibleChart: getInitialVisibleChart(),
   language: loadPersistedLanguage(),
 };
 

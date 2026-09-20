@@ -84,9 +84,6 @@ describe("resolveAxisLimit", () => {
     expect(resolveAxisLimit("10", "abc", false).error).toMatch(/Máx inválido/);
   });
 
-  // Cenario de verificacao do pedido (Simulation Chart radial, Y sempre log):
-  // Y Max = 100.000 com Min vazio -> topo do eixo em 100000, sem tocar no
-  // piso (fica auto); depois Y Min = 10, Max = 1.000 -> so esse trecho.
   it("matches the requested verification scenario (radial Simulation Y, log axis)", () => {
     const r1 = resolveAxisLimit("", "100.000", true);
     expect(r1).toEqual({ min: undefined, max: 100000 });

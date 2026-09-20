@@ -25,10 +25,6 @@ import {
 } from "../redux/radial/slice";
 import { setVisibleChart } from "../redux/ui/slice";
 import { computeBeta, formatTargets, parseTargetInput } from "../redux/radial/targetConversion";
-// Formatacao adaptativa de vazao (casas decimais por faixa) para o texto de
-// ajuda da janela de validade. Nome herdado da Fase 3 (bbl/min), mas o corpo
-// e agnostico de unidade -- Fase 6 reusa para cm3/min no ramo linear. Fase 7
-// unifica quando o grafico/banner do linear entrar.
 import { fmtBblMin } from "../tools/validityWindow";
 
 const LINEAR_FLOWRATE_DEFAULTS = { min: 0.5, max: 10 };
@@ -39,9 +35,6 @@ export default function SimuSetupCard() {
   const { flowrate: iflowrate, minimum_flowrate: fflowrate, acid_concentration: aConcentration, temperature, acid_type: acidType, step_numbers, id, rock_type, core_porosity, core_length, core_diameter } = setup;
   const dataCurve = useSelector((state: RootState) => state.results)
   const radialState = useSelector((state: RootState) => state.radial)
-  // f (flowing fraction) so chega aqui via /pvbtradialcurve.parameters,
-  // consumido por parameters/slice.tsx (state.parameters) -- nunca em
-  // radialState.curves[i].metadata (esse e a janela de validade).
   const radialParameters = useSelector((state: RootState) => state.parameters)
   const visibleChart = useSelector((state: RootState) => state.ui.visibleChart);
   const { flowRegime, wellboreSize, wellboreSizeMode, payzoneThickness, drainageRadius, targetMode, targetsLambda, skinFlowrates, radialTemperatureK, designTemperatures } = radialState;
@@ -49,16 +42,6 @@ export default function SimuSetupCard() {
   const beta = computeBeta(wellboreRadiusIn);
   const targetChips = formatTargets(targetsLambda, targetMode, { beta });
 
-  // O bloco de janela de validade (Fase 3) cita rotulos de alvo especificos
-  // (ex. "5.00 ft"). radialState.curves so e substituido num novo Calculate --
-  // mexer nos chips NAO limpa. Entao gatilhamos a exibicao comparando o
-  // CONJUNTO de rotulos calculados com o dos chips atuais: alvo trocado/
-  // removido/adicionado => conjuntos diferem => bloco some (nao cita rotulo
-  // de chip que nao existe mais). Comparacao ordenada (nao join na ordem de
-  // exibicao) para que uma futura reordenacao de chips -- mesmos alvos, dado
-  // 100% valido -- nao faca o bloco piscar. sort() preserva multiplicidade
-  // (alvos duplicados), Set nao. Dado stale de VALOR e aceitavel; rotulo
-  // stale nao e.
   const sortedLabelKey = (labels: string[]) => [...labels].sort().join('|');
   const computedTargetKey = sortedLabelKey(radialState.curves.map((c) => c.target_label));
   const currentTargetKey = sortedLabelKey(
@@ -152,17 +135,10 @@ export default function SimuSetupCard() {
 
   const isIdUsed = Boolean(id) && ids.some(existingId => existingId === id || existingId.startsWith(`${id} · `));
 
-  // Item 3 (cache/persistencia): antes isIdUsed BLOQUEAVA o calculo. Agora
-  // so avisa -- calcular com um ID ja usado pergunta (window.confirm) se
-  // quer sobrescrever a simulacao salva daquele ID; addCurve/upsertSnapshot
-  // ja fazem upsert por id (idempotente), entao sobrescrever e seguro.
   const canCalculate = flowRegime === 'radial'
     ? Boolean(id) && targetsLambda.length > 0 && radialTemperatureK >= 283 && radialTemperatureK <= 478
     : Boolean(id);
 
-  // Radial: depois de calcular, o botao vira "Calculated" (cinza, desabilitado)
-  // ate o Simulation ID mudar. Guarda o ID do ultimo run; `processed` garante
-  // que Reset (resetRadial) libere o botao de novo.
   const [radialCalculatedId, setRadialCalculatedId] = useState<string | null>(null);
   const radialAlreadyCalculated =
     flowRegime === 'radial' && radialState.processed && radialCalculatedId === id;
@@ -213,10 +189,6 @@ export default function SimuSetupCard() {
           rock: rock_type,
           porosity: core_porosity,
           concentration: aConcentration,
-          // radialTemperatureK, NAO o `temperature` do setup linear (esse e
-          // Celsius e so faz sentido pro modelo linear) -- era esse o field
-          // que vazava "24.05" (default linear) pro export de uma curva
-          // radial que na verdade rodou a 297+ K.
           temperature: radialTemperatureK,
           wellboreRadiusIn,
           payzoneThicknessFt: payzoneThickness,
@@ -235,14 +207,7 @@ export default function SimuSetupCard() {
           acidVolumePoints: c.acidvolumepoints ?? undefined,
           statusPoints: c.status,
           withinValidityRange: c.within_validity_range,
-          // Export (Fase "Exportar tudo") le q_opt daqui (readValidity) para
-          // a nota de "minimo na borda" -- faltava aqui, export.tsx sempre
-          // caia no fallback "nao disponivel".
           metadata: c.metadata,
-          // Flowing Fraction (f): mesma logica do bug acima, mas para uma
-          // chave que nunca existiu em metadata (so RadialCurveValidity).
-          // Vem de state.parameters.f, resolvido pelo backend para o
-          // rock_type deste request (get_adjusted_parameters).
           flowingFraction: radialParameters.f,
         }));
       });
@@ -402,14 +367,6 @@ export default function SimuSetupCard() {
                 <input type="number" className="input" value={iflowrate} onChange={(e) => dispatch(setParameter({ key: 'flowrate', value: e.target.value }))} />
               </div>
               {flowRegime === 'radial' && payzoneThickness > 0 && Number.isFinite(Number(fflowrate)) && Number.isFinite(Number(iflowrate)) && (
-                // Preview em tempo real (Fase 8): aritmetica pura sobre o que
-                // esta digitado, sem esperar Calculate/backend -- por isso o
-                // fator (bbl->gal, 42 exato, mesma constante de units.py) fica
-                // local aqui, so para este texto de apoio. Nao alimenta grafico
-                // nem tabela: aqueles numeros continuam vindo prontos do
-                // backend (units.flowrate_to_display), essa e so uma segunda
-                // exibicao do MESMO calculo, nao uma segunda fonte de verdade
-                // para o valor usado em outro lugar.
                 <div style={{ marginTop: '4px', fontSize: '11.5px', lineHeight: 1.5 }}>
                   <span className="text-muted">
                     {'= '}{fmtBblMin((Number(fflowrate) * 42) / payzoneThickness)}–{fmtBblMin((Number(iflowrate) * 42) / payzoneThickness)} gal/(ft.min) on chart

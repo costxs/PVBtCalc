@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ftToLambda, lambdaToFt, lambdaToSkin, skinToLambda, formatTargets, parseTargetInput } from "./targetConversion";
 
-// beta = r_w / L for a 3in wellbore radius over the model's 1m
-// characteristic length: 3 * 0.0254 / 1.0 = 0.0762
 const BETA = 0.0762;
 
 describe("target conversion fixture (locks in L and beta)", () => {

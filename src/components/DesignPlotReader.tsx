@@ -9,9 +9,6 @@ interface DesignPlotReaderProps {
   onReadingChange?: (data: { mode: DesignPlotReadMode; target: number; reading: DesignPlotReading; temperatureK: number } | null) => void;
 }
 
-// Etapa 1 da leitura guiada (artigo, Secao 6.4): entra por UM eixo, devolve
-// os OUTROS DOIS -- sem desenhar as setas ainda (Etapa 2, so depois deste
-// calculo estar conferido contra o fixture, ver designPlotReader.test.ts).
 function getModeOptions(isPt: boolean): { value: DesignPlotReadMode; label: string; unit: string }[] {
   return [
     { value: "volume", label: "Acid Volume, gal/ft", unit: "gal/ft" },
@@ -20,8 +17,6 @@ function getModeOptions(isPt: boolean): { value: DesignPlotReadMode; label: stri
   ];
 }
 
-// Quais dois campos mostrar por modo -- sempre os DOIS que nao foram a
-// entrada (item (c) do pedido: "quero X ft -> devolve volume e q_opt").
 const OUTPUT_FIELDS: Record<DesignPlotReadMode, Array<"length" | "qOpt" | "vOpt">> = {
   volume: ["length", "qOpt"],
   rate: ["length", "vOpt"],

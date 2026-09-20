@@ -51,7 +51,6 @@ export default function FooterSection() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-[30px]">
-        {/* Column 1: Financial Support & Development */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <h6 style={columnTitleStyle}>{content.financialSupport.title}</h6>
           <p style={bodyTextStyle}>
@@ -63,7 +62,6 @@ export default function FooterSection() {
 
           <h6 style={{ ...columnTitleStyle, margin: '10px 0 0' }}>{content.development.title}</h6>
 
-          {/* Phase 1: Linear Model */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={subtitleStyle}>{content.development.linearPhase.subtitle}</span>
             <p style={bodyTextStyle}>
@@ -72,7 +70,6 @@ export default function FooterSection() {
             </p>
           </div>
 
-          {/* Phase 2: Radial Model */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
             <span style={subtitleStyle}>{content.development.radialPhase.subtitle}</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 12px' }}>
@@ -103,7 +100,6 @@ export default function FooterSection() {
           </div>
         </div>
 
-        {/* Column 2: Related Publication */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <h6 style={columnTitleStyle}>{content.relatedPublication.title}</h6>
           <p style={bodyTextStyle}>
@@ -116,7 +112,6 @@ export default function FooterSection() {
           </p>
         </div>
 
-        {/* Column 3: Models */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <h6 style={columnTitleStyle}>{content.models.title}</h6>
           <p style={bodyTextStyle}>

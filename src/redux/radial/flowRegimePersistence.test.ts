@@ -1,19 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
-/**
- * flowRegimePersistence.test.ts
- * ------------------------------------------------------------------
- * Bug (2026-09): flowRegime nunca sobrevivia a um reload -- resetava pra
- * "linear" toda vez, mesmo com curvas radiais persistidas em
- * resultCurves (storageresults/slice.tsx, que ESSE sim ja salvava em
- * localStorage). O modulo le/escreve localStorage NO INITIALSTATE e no
- * reducer setFlowRegime; como o vitest deste projeto roda em ambiente
- * "node" puro (sem jsdom), um stub minimo de localStorage precisa existir
- * ANTES do import do slice -- por isso os imports sao dinamicos e
- * `vi.resetModules()` roda entre casos pra forcar o initialState ser
- * recalculado a cada `import()` (ES modules sao cacheados por padrao).
- */
-
 function createMemoryStorage(): Storage {
   let store: Record<string, string> = {};
   return {
@@ -61,7 +47,6 @@ describe("radial slice flowRegime persistence", () => {
     expect(state.flowRegime).toBe("radial");
     expect((globalThis as any).localStorage.getItem("radialFlowRegime")).toBe("radial");
 
-    // simula um reload: novo import, novo initialState calculado do zero
     vi.resetModules();
     const { default: reducerAfterReload } = await import("./slice");
     const reloaded = reducerAfterReload(undefined, { type: "@@INIT" });

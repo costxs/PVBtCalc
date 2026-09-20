@@ -1,36 +1,21 @@
 import { ReactNode } from "react";
 
-/**
- * DataTable.tsx (Fase 8)
- * ------------------------------------------------------------------
- * UNICO componente de tabela do painel 05 -- consumido por todas as abas
- * (Simulation/Analysis, Skin Evolution, Design Plot). A ordem das colunas
- * vem de `columns`, NUNCA de Object.keys() de um objeto de dados: cada aba
- * monta seu proprio columnsConfig (ver Results.tsx), o componente so itera
- * sobre ele. Isso elimina a fragilidade de a ordem da tabela depender de
- * como o objeto foi montado no backend/no reducer.
- */
 export interface ColumnConfig {
-  key: string; // chave de acesso em cada row
-  label: string; // titulo exibido no cabecalho
-  unit?: string; // unidade, exibida junto do label como "label (unit)"
-  description?: string; // tooltip (title) do cabecalho/celula; opcional
-  format?: (v: any) => string; // formatacao por coluna; default abaixo se omitido
+  key: string;
+  label: string;
+  unit?: string;
+  description?: string;
+  format?: (v: any) => string;
 }
 
 export interface DataTableProps {
   columns: ColumnConfig[];
   rows: Record<string, any>[];
-  // Coluna que recebe o marcador de severidade (Fase 4, radial); so a
-  // Simulation Chart usa isto hoje -- Skin/Design nao passam esta prop.
   markerColumnKey?: string;
   renderMarker?: (row: Record<string, any>, rowIndex: number) => ReactNode;
-  // Linha em destaque (ex.: otimo PVBt/volume). Sem uso em Skin/Design.
   isHighlighted?: (row: Record<string, any>, rowIndex: number) => boolean;
 }
 
-// Mesma regra adaptativa que a tabela ja usava antes da Fase 8 (Results.tsx
-// getFormattedVal): notacao cientifica fora de [0.01, 1000], 3 casas dentro.
 const defaultFormat = (val: any): string => {
   if (val == null) return "-";
   if (typeof val !== "number") return String(val);
@@ -41,10 +26,6 @@ const defaultFormat = (val: any): string => {
 };
 
 export default function DataTable({ columns, rows, markerColumnKey, renderMarker, isHighlighted }: DataTableProps) {
-  // Guard dev-only: `columns` vem de configs montados a mao (4 abas passam
-  // por aqui -- ver Results.tsx). Com Object.keys() era impossivel ter duas
-  // colunas do mesmo campo; com config explicito, uma key repetida passa
-  // batido e renderiza duas colunas lendo o mesmo row[key].
   if (import.meta.env.DEV) {
     const seen = new Set<string>();
     const dups = [...new Set(columns.map((c) => c.key).filter((k) => seen.size === seen.add(k).size))];

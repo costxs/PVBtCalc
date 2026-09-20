@@ -10,8 +10,8 @@ import type { RadialCurveResult } from "../redux/radial/slice";
 
 const META = {
   q_opt_gal_ft_min: 1,
-  validity_min_gal_ft_min: 0.1, // q_opt / 10
-  validity_max_gal_ft_min: 10, // q_opt * 10
+  validity_min_gal_ft_min: 0.1,
+  validity_max_gal_ft_min: 10,
 };
 
 const META_CM3 = {
@@ -47,9 +47,6 @@ describe("readValidity (Fase 7) -- normalizacao por sufixo de chave", () => {
 });
 
 describe("Fase 7 -- metadata de familia desconhecida cai no tratamento 'sem janela'", () => {
-  // Fase 8: gal_ft_min virou familia REAL (radial) -- a fixture de familia
-  // desconhecida precisa de um sufixo que continue nao reconhecido por
-  // nenhuma das duas (L/min nao existe em lugar nenhum do backend).
   const ALIEN = { q_opt_l_min: 3, validity_min_l_min: 0.3, validity_max_l_min: 30 } as any;
 
   it("splitByValidity: curva inteira solida, sem faixa, sem tracejado", () => {
@@ -74,7 +71,6 @@ describe("collectValidityOffenders (Fase 7) -- regime linear (cm³/min)", () => 
       { flowratepoints: [0.01, 50], within_validity_range: [false, false], metadata: META_CM3 },
     ]);
     expect(s.count).toBe(2);
-    // pior = maior razao: 0.458/0.01 = 45.8 (abaixo) vs 50/45.8 = 1.09 (acima)
     expect(s.worst).toMatchObject({ boundary: "lower", limit: 0.458, flowrate: 0.01, unit: "cm³/min" });
   });
 });
@@ -96,16 +92,13 @@ describe("splitByValidity (Fase 5)", () => {
   });
 
   it("ponto abaixo da janela => tracejado + faixa inferior, com vertice no cruzamento", () => {
-    // x: 0.05 (fora, < 0.1), 0.2 (dentro), 1 (dentro)
     const r = splitByValidity([0.05, 0.2, 1], [4, 8, 10], [false, true, true], META);
     expect(r.bandBelow).toBe(true);
     expect(r.bandAbove).toBe(false);
-    // vertice de cruzamento em x = validity_min = 0.1, presente nos dois traces
     const solidXs = r.solid.filter(Boolean).map((p) => (p as number[])[0]);
     const dashedXs = r.dashed.filter(Boolean).map((p) => (p as number[])[0]);
     expect(solidXs).toContain(0.1);
     expect(dashedXs).toContain(0.1);
-    // y do cruzamento: geometrico entre (0.05,4) e (0.2,8)
     const cross = r.solid.find((p) => p && (p as number[])[0] === 0.1) as number[];
     const t = (0.1 - 0.05) / (0.2 - 0.05);
     expect(cross[1]).toBeCloseTo(4 * Math.pow(8 / 4, t), 6);
@@ -116,7 +109,7 @@ describe("splitByValidity (Fase 5)", () => {
     expect(r.bandBelow).toBe(false);
     expect(r.bandAbove).toBe(true);
     const dashedXs = r.dashed.filter(Boolean).map((p) => (p as number[])[0]);
-    expect(dashedXs).toContain(10); // cruzamento em validity_max
+    expect(dashedXs).toContain(10);
     expect(dashedXs).toContain(40);
   });
 
@@ -124,7 +117,6 @@ describe("splitByValidity (Fase 5)", () => {
     const r = splitByValidity([0.05, 0.2], [null, 8], [false, true], META);
     expect(r.solid[0]).toBeNull();
     expect(r.dashed[0]).toBeNull();
-    // sem cruzamento interpolado quando um dos y e null
     expect(r.solid.filter((p) => p && (p as number[])[0] === 0.1)).toHaveLength(0);
   });
 });
@@ -170,7 +162,7 @@ describe("collectValidityOffenders (Fase 5)", () => {
     expect(s.count).toBe(1);
     expect(s.curvesAffected).toBe(1);
     expect(s.worst).toMatchObject({ boundary: "upper", limit: 10, flowrate: 50 });
-    expect(s.worst!.ratio).toBeCloseTo(5, 10); // 50 / 10
+    expect(s.worst!.ratio).toBeCloseTo(5, 10);
   });
 
   it("razao abaixo do limite inferior = validity_min / x", () => {
@@ -178,7 +170,7 @@ describe("collectValidityOffenders (Fase 5)", () => {
       curve({ flowratepoints: [0.02], within_validity_range: [false], metadata: META }),
     ]);
     expect(s.worst).toMatchObject({ boundary: "lower", limit: 0.1 });
-    expect(s.worst!.ratio).toBeCloseTo(5, 10); // 0.1 / 0.02
+    expect(s.worst!.ratio).toBeCloseTo(5, 10);
   });
 
   it("varias curvas: conta pontos, curvas distintas e escolhe a MAIOR razao", () => {
@@ -189,7 +181,7 @@ describe("collectValidityOffenders (Fase 5)", () => {
     expect(s.count).toBe(3);
     expect(s.curvesAffected).toBe(2);
     expect(s.worst!.label).toBe("10.00 ft");
-    expect(s.worst!.ratio).toBeCloseTo(20, 10); // 200 / 10
+    expect(s.worst!.ratio).toBeCloseTo(20, 10);
   });
 });
 

@@ -4,27 +4,6 @@ import { createElement } from "react";
 import DataTable, { ColumnConfig } from "./DataTable";
 import { buildSimulationTable, buildSkinTable, buildDesignTable } from "./columnsConfig";
 
-// Contexto (ver DataTable.tsx e o pedido "Validar o guard de key duplicada"):
-// desde a Fase 8 a ordem/existencia de cada coluna vem de um columnsConfig
-// montado a mao por aba -- nao mais de Object.keys(). Com config explicito, um
-// push repetido da mesma key passa batido e renderiza duas colunas lendo o
-// mesmo row[key].
-//
-// Duas defesas, ambas verificadas aqui:
-//   1) o guard dev-only dentro do DataTable. VERIFICADO que dispara, tanto em
-//      server render (renderToString) quanto em client render (createRoot):
-//      ele emite console.WARN. A mensagem "Encountered two children with the
-//      same key" que o React emite e um console.ERROR separado, do reconciler
-//      -- as duas saem, em canais diferentes; e facil so reparar na vermelha.
-//      Fraqueza real do guard: dev-only, invisivel no CI e em build de prod.
-//   2) estes testes -- rodam no CI, cobrem todas as configs de uma vez, sem
-//      depender de console aberto na aba certa. Esta e a rede que vale.
-//
-// A aba Analysis Chart (visibleChart === 'B', Chart.tsx) NAO tem builder
-// proprio: Results.tsx roteia tudo que nao e 'skin'/'design' para
-// buildSimulationTable. Entao "o do Analysis" == buildSimulationTable, ja
-// coberto abaixo em todos os ramos (radial/linear x pvbt/volume x target).
-
 function keysOf(columns: ColumnConfig[]): string[] {
   return columns.map((c) => c.key);
 }
@@ -35,14 +14,6 @@ function expectUniqueKeys(columns: ColumnConfig[]) {
   expect(dups, `keys duplicadas no columnsConfig: [${[...new Set(dups)].join(", ")}]`).toEqual([]);
 }
 
-// ---------------------------------------------------------------------------
-// Exercita o guard do DataTable contra uma duplicata REAL. O caminho pela UI
-// (dev server -> modo radial -> aba Simulation com dados do backend) e fragil;
-// renderToString roda a mesma funcao componente e o guard executa no corpo da
-// funcao, ANTES do return -- entao ele nao tem como ser "vencido" pelo aviso
-// do React, que so acontece na reconciliacao depois. Se o warn dispara aqui,
-// dispara no navegador tambem.
-// ---------------------------------------------------------------------------
 describe("DataTable — guard dev-only de key de coluna duplicada", () => {
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
@@ -54,8 +25,6 @@ describe("DataTable — guard dev-only de key de coluna duplicada", () => {
   });
 
   it("pre-condicao: o guard so roda quando import.meta.env.DEV", () => {
-    // vitest roda em modo dev por padrao; se algum dia rodar com PROD=true
-    // este teste vira um lembrete claro em vez de uma falha confusa abaixo.
     expect(import.meta.env.DEV).toBe(true);
   });
 
@@ -63,7 +32,7 @@ describe("DataTable — guard dev-only de key de coluna duplicada", () => {
     const columns: ColumnConfig[] = [
       { key: "q0", label: "q0" },
       { key: "wv", label: "wv" },
-      { key: "wv", label: "wv (2)" }, // duplicata deliberada
+      { key: "wv", label: "wv (2)" },
     ];
     renderToString(createElement(DataTable, { columns, rows: [{ q0: 1, wv: 2 }] }));
 
@@ -83,11 +52,6 @@ describe("DataTable — guard dev-only de key de coluna duplicada", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Passo 3 do pedido: teste permanente afirmando que cada builder de
-// columnsConfig produz keys unicas, em toda variacao de entrada que muda o
-// conjunto de colunas.
-// ---------------------------------------------------------------------------
 describe("columnsConfig — keys unicas em cada builder", () => {
   describe("buildSimulationTable", () => {
     it("radial, modo pvbt, com target", () => {
@@ -104,9 +68,6 @@ describe("columnsConfig — keys unicas em cada builder", () => {
       const curve = { flowRegime: "radial", outputMode: "volume", targetLabel: "s = -3", flowratePoints: [0, 1] };
       const table = buildSimulationTable(curve);
       expectUniqueKeys(table.columns);
-      // Fase 9: sem raio de drenagem o backend manda output_mode "volume" e
-      // este ramo (antes codigo morto) passa a rodar -- a coluna PVBt sai e
-      // o otimo passa a ser ranqueado por V_A.
       expect(keysOf(table.columns)).not.toContain("PVBt");
       expect(keysOf(table.columns)).toContain("V_A");
       expect(table.optimumField).toBe("V_A");
@@ -126,8 +87,6 @@ describe("columnsConfig — keys unicas em cada builder", () => {
 
     it("linear, modo volume (branch morto hoje, mas ainda no codigo)", () => {
       const curve = { flowRegime: "linear", outputMode: "volume", flowratePoints: [0, 1] };
-      // isVolumeMode exige flowRegime === 'radial', entao este curve cai no
-      // branch linear/pvbt de fato -- ainda assim vale travar as keys.
       expectUniqueKeys(buildSimulationTable(curve).columns);
     });
 

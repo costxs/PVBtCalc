@@ -72,7 +72,6 @@ export function getOptimalPointsForDesign(curves: RadialCurveResult[]): DesignOp
     };
   }).filter((p): p is DesignOptimalPoint => p !== null && isFinite(p.optimalVolume));
 
-  // Sort by target to ensure the line connects in order
   optimalPoints.sort((a, b) => a.target - b.target);
 
   return optimalPoints;

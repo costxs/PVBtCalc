@@ -1,32 +1,14 @@
 import type { ReactNode } from "react";
 
-/**
- * ChartControls.tsx
- * ------------------------------------------------------------------
- * Quadro de controle acima dos graficos radiais (Design Plot / Simulation
- * Chart / Skin Evolution), substituindo a legenda nativa do ECharts. Puro
- * UI/estado local -- quem decide QUAIS series aparecem no grafico e o
- * chamador (Chart.tsx filtra `series` antes de montar o option), este
- * arquivo so renderiza chips/segmented control e devolve toggles.
- *
- * Cor do chip = cor da curva no grafico (mesmo indice de CURVE_PALETTE que
- * Chart.tsx usa) -- ela sozinha identifica a curva; o tipo de linha
- * (solido/tracejado) fica so no SegmentedControl do Design Plot.
- */
-
 export interface ChipItem {
   id: string;
   label: string;
-  /** cor do ponto; omitida para um chip "neutro" (ex.: "Optimum path"). */
   color?: string;
 }
 
 interface ChipProps {
   item: ChipItem;
   isActive: boolean;
-  /** true so bloqueia o clique de desligar -- usado pelo ChipRow pra nao
-   * deixar o grupo inteiro vazio; um Chip solto (fora de um grupo, ex.:
-   * "Optimum path") nunca passa isto. */
   disableOff?: boolean;
   onToggle: (id: string) => void;
 }
@@ -67,14 +49,9 @@ interface ChipRowProps {
   items: ChipItem[];
   active: Set<string>;
   onToggle: (id: string) => void;
-  /** chips soltos apos os do grupo (ex.: "Optimum path") -- nao contam pra
-   * regra "nao deixa desligar o ultimo" do grupo principal. */
   extra?: ReactNode;
 }
 
-// Um clique liga/desliga o chip; nunca deixa desligar o ultimo ativo DO
-// GRUPO (senao o grafico ficaria vazio sem forma obvia de voltar) -- so
-// aplica com mais de 1 item, senao um grupo de 1 ficaria travado ligado.
 export function ChipRow({ legendLabel, items, active, onToggle, extra }: ChipRowProps) {
   if (items.length === 0 && !extra) return null;
   return (
@@ -97,7 +74,6 @@ export function ChipRow({ legendLabel, items, active, onToggle, extra }: ChipRow
 interface SegmentedOption<T extends string> {
   value: T;
   label: string;
-  /** mini amostra de linha ao lado do rotulo -- dispensa repetir "solido/tracejado" em cada item. */
   preview?: 'solid' | 'dashed';
 }
 
@@ -163,8 +139,6 @@ export function SegmentedControl<T extends string>({ legendLabel, options, value
   );
 }
 
-// Impede desligar o ultimo item ativo do conjunto (chamador so precisa
-// chamar isto no onToggle, sem reimplementar a regra em cada chart).
 export function toggleInSet<T>(set: Set<T>, item: T): Set<T> {
   const next = new Set(set);
   if (next.has(item)) {

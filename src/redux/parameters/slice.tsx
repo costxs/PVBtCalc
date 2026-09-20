@@ -1,22 +1,19 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-// 🔹 Criando a Action Assíncrona para buscar funcionários
 import { RootState } from "../store";
 import handleAuthError from "../services/fetchAuth";
 import { fetchRadialCurve } from "../radial/slice";
 import { API_BASE } from "../../services/api";
-// 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchParam = createAsyncThunk("param/fetch", async (_, {getState,dispatch}) => {
     const state = getState() as RootState
     const setup = state.setup
     const token = state.user.token
     const setupEntries = Object.entries(setup);
-    // Removendo o primeiro e o último item
     const filteredSetup = Object.fromEntries(setupEntries.slice(1, -3));
     const response = await fetch(`${API_BASE}/getparameters`, {
       method: "POST",
       headers: {
         Authorization:`Bearer ${token}`,
-        "Content-Type": "application/json", // Informar que estamos enviando JSON
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(filteredSetup),
     });
@@ -26,7 +23,6 @@ export const fetchParam = createAsyncThunk("param/fetch", async (_, {getState,di
   });
   
 
-// 🔹 Criando o Slice do Redux
 const parametersSlice = createSlice({
   name: "results",
   initialState: {
@@ -37,9 +33,6 @@ const parametersSlice = createSlice({
     a:0,
     b:0,
     k0:0,
-    // Flowing fraction -- so o Radial devolve isso (RadialAdjustedParameters
-    // em redux/radial/slice.tsx); /getparameters (Linear, tools.py:getparam)
-    // nao inclui, fica em 0 default nesse regime.
     f:0,
    },
   reducers: {
@@ -63,11 +56,6 @@ const parametersSlice = createSlice({
         .addCase(fetchParam.rejected, ()=>{
 
         })
-        // Modo Radial nao chama fetchParam (o endpoint /getparameters e
-        // Linear-only: espera core_diameter/core_length, nao a geometria
-        // radial) -- em vez disso, /pvbtradialcurve devolve o bloco de
-        // parametros junto da resposta principal (ver RadialAdjustedParameters
-        // em redux/radial/slice.tsx) e este reducer o consome aqui.
         .addCase(fetchRadialCurve.fulfilled, (state, action) => {
             const params = action.payload["parameters"];
             if (!params) return;

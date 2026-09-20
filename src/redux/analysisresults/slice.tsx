@@ -2,7 +2,6 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import handleAuthError from "../services/fetchAuth";
 import { API_BASE } from "../../services/api";
-// 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchAnalitical = createAsyncThunk("analysis/fetch", async (_, {getState,dispatch}) => {
     const state = getState() as RootState
     const setup = { ...state.optSetup } as any
@@ -19,12 +18,11 @@ export const fetchAnalitical = createAsyncThunk("analysis/fetch", async (_, {get
     const token = state.user.token
     const setupEntries = Object.entries(setup);
     console.log(setupEntries)
-    // Removendo o primeiro e o último item
     const response = await fetch(`${API_BASE}/pvbtanalitical`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json", // Informar que estamos enviando JSON
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(setup),
     });
@@ -33,8 +31,6 @@ export const fetchAnalitical = createAsyncThunk("analysis/fetch", async (_, {get
     return data;
   });
   
-
-
 
   interface CurveAnalysis {
     id: string;
@@ -50,7 +46,6 @@ export const fetchAnalitical = createAsyncThunk("analysis/fetch", async (_, {get
     darcyVelocity: number[];
   }
 
-// 🔹 Criando o Slice do Redux
 const resultSlice = createSlice({
   name: "resultsBehavior",
   initialState: {

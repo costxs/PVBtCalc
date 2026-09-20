@@ -1,6 +1,5 @@
-// setupMirrorSlice.ts (Redux B)
 import { createSlice } from "@reduxjs/toolkit";
-import { setGeometry, setSystem, setParameter, resetParameter } from "../setup/slice"; // Redux A
+import { setGeometry, setSystem, setParameter, resetParameter } from "../setup/slice";
 
 const setupMirrorSlice = createSlice({
   name: "setupMirror",
@@ -48,11 +47,9 @@ const setupMirrorSlice = createSlice({
         state.temperature = action.payload['temperature'];
         state.step_numbers = action.payload['steps'];
         state.flowrate = action.payload['iflowrate'];
-        // ⛔ NÃO pega: id, optimum, minimum_flowrate
       })
       .addCase(setParameter, (state, action) => {
         const { key, value } = action.payload;
-        // só copia se for uma chave permitida
         const allowedKeys = [
           "acid_type",
           "acid_concentration",
@@ -68,7 +65,6 @@ const setupMirrorSlice = createSlice({
         }
       })
       .addCase(resetParameter, (state) => {
-        // reset apenas os campos herdados
         state.acid_concentration = 0;
         state.core_diameter = 0;
         state.core_length = 0;

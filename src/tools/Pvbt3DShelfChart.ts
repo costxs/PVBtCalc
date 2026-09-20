@@ -1,17 +1,4 @@
 // @ts-nocheck
-/**
- * Pvbt3DShelfChart
- * ------------------------------------------------------------------
- * Grafico 3D "em prateleiras": cada curva (rodada salva) ocupa sua
- * propria trilha de profundidade, com uma cortina translucida ate o
- * piso para dar nocao de altura mesmo girando. Pensado para comparar
- * 2-6 curvas de PVBt (ou volume de acido) vs vazao sem que se
- * sobreponham como aconteceria num grafico 2D tradicional.
- *
- * Classe vanilla (sem depender de React) que se monta num elemento DOM.
- * O wrapper de React fica em Pvbt3DChart.tsx, no mesmo diretorio de
- * componentes.
- */
 
 import * as THREE from 'three';
 
@@ -20,13 +7,13 @@ const DEFAULTS = {
   yLabel: 'PVBt',
   xLog: true,
   xSpan: 8,
-  yScale: null,        // null = auto-escala pelo maior valor entre todas as runs
-  zLane: 2.2,           // espacamento entre trilhas
+  yScale: null,
+  zLane: 2.2,
   curtainOpacity: 0.14,
-  background: null,     // null = transparente
+  background: null,
   axisColor: 0x898781,
   labelColor: '#52514e',
-  pointEvery: 4,        // marca um ponto a cada N para nao poluir a curva
+  pointEvery: 4,
 };
 
 export class Pvbt3DShelfChart {
@@ -52,17 +39,6 @@ export class Pvbt3DShelfChart {
     this._resizeObserver.observe(container);
   }
 
-  // -------------------------------------------------------------
-  // API publica
-  // -------------------------------------------------------------
-
-  /**
-   * runs: [{ label, color, qs, values }]
-   *   label   - string mostrado na legenda
-   *   color   - '#rrggbb' ou número hex (0xrrggbb)
-   *   qs      - array de vazoes (eixo X) para esta run
-   *   values  - array de PVBt/volume (eixo Y), mesmo tamanho de qs
-   */
   setRuns(runs) {
     this.runs = runs.map((r) => ({
       ...r,
@@ -71,7 +47,6 @@ export class Pvbt3DShelfChart {
     this._rebuild();
   }
 
-  /** Troca a rotacao para um angulo especifico (uteis para "vista de cima" etc). */
   setView(rotY, rotX) {
     this.rotY = rotY;
     this.rotX = rotX;
@@ -87,10 +62,6 @@ export class Pvbt3DShelfChart {
       this.canvas.parentNode.removeChild(this.canvas);
     }
   }
-
-  // -------------------------------------------------------------
-  // internals
-  // -------------------------------------------------------------
 
   _initScene() {
     const canvas = document.createElement('canvas');
@@ -298,7 +269,6 @@ export class Pvbt3DShelfChart {
     this._axisGroup.add(mk(new THREE.Vector3(-xSpan / 2, 0, z0), new THREE.Vector3(-xSpan / 2, 0, z1)));
     this._axisGroup.add(mk(new THREE.Vector3(-xSpan / 2, 0, z1), new THREE.Vector3(-xSpan / 2, vMax * yScale, z1)));
 
-    // Floor lines for X axis
     const tickCount = 5;
     for (let i = 0; i <= tickCount; i++) {
       const q = this._xLog
@@ -308,15 +278,12 @@ export class Pvbt3DShelfChart {
       this._axisGroup.add(mkGrid(new THREE.Vector3(xPos(q), 0, z0), new THREE.Vector3(xPos(q), 0, z1)));
     }
     
-    // Back wall and side wall grid for Y axis
     for (let i = 0; i <= 5; i++) {
       const v = (vMax * i) / 5;
       const y = v * yScale;
       this._addLabel(this._fmt(v), -xSpan / 2 - 0.55, y, z1, 0.7);
       
-      // Horizontal line on the side wall (from front to back)
       this._axisGroup.add(mkGrid(new THREE.Vector3(-xSpan / 2, y, z0), new THREE.Vector3(-xSpan / 2, y, z1)));
-      // Horizontal line on the back wall (from left to right)
       this._axisGroup.add(mkGrid(new THREE.Vector3(-xSpan / 2, y, z0), new THREE.Vector3(xSpan / 2, y, z0)));
     }
     this._addLabel(this.opts.xLabel, 0, -0.75, z1 + 0.6, 1.8);

@@ -11,22 +11,12 @@ export type OutputMode = "pvbt" | "volume";
 
 const DEFAULT_TARGETS_FT = [5, 10, 15, 20];
 
-// Janela de validade da vazao (gal/(ft.min) desde a Fase 8 -- antes bbl/min
-// -- ja convertido no backend via units.flowrate_to_display). null quando o
-// backend nao conseguiu achar q_opt interior para esse alvo. `type` (nao
-// `interface`) de proposito: assim e atribuivel a Record<string, number> --
-// o contrato ValidityAwareCurve de tools/validityWindow.ts (Fase 7) le o
-// metadata generico por sufixo de chave, sem depender deste tipo.
 export type RadialCurveValidity = {
   q_opt_gal_ft_min: number;
   validity_min_gal_ft_min: number;
   validity_max_gal_ft_min: number;
 };
 
-// Bloco "Adjusted Parameters" para o request atual -- espelha o payload de
-// /getparameters no Linear. Emitido pelo backend (routes/pvbtRadialCurve.py)
-// junto da resposta principal para o painel poder confirmar visualmente qual
-// AcidSetup foi resolvido a partir de system.acid_system.
 export interface RadialAdjustedParameters {
   ro: number;
   X: number;
@@ -42,10 +32,6 @@ export interface RadialCurveResult {
   target: number;
   target_label: string;
   flowratepoints: number[];
-  // NOTA (divida Fase 5): o backend (Fase 2) agora emite null por elemento
-  // onde status[i] === "clipped". Estes tipos ainda dizem number[]; corrigir
-  // para (number | null)[] exige propagar pela cadeia storageresults/results/
-  // Results.tsx -- fora do escopo da Fase 3 (que so consome metadata).
   pvbtpoints: number[] | null;
   acidvolumepoints: number[] | null;
   insterticialvelocity: number[];
@@ -55,7 +41,6 @@ export interface RadialCurveResult {
   wormholevelocity: number[];
   darcyvelocity: number[];
   status: string[];
-  // array paralelo a status/flowratepoints -- mesmo indice, mesmo ponto (SoA).
   within_validity_range: boolean[];
   metadata: RadialCurveValidity | null;
 }
@@ -146,9 +131,6 @@ export const fetchDesignPlot = createAsyncThunk("radial/fetchDesignPlot", async 
   return data;
 });
 
-// Response contract of /pvbtradialcurve (routes/pvbtRadialCurve.py):
-// { output_mode: "pvbt" | "volume", curves: RadialCurveResult[], parameters: RadialAdjustedParameters }
-
 export const fetchRadialCurve = createAsyncThunk("radial/fetch", async (_, { getState, dispatch }) => {
   const state = getState() as RootState;
   const { setup, radial } = state;
@@ -157,9 +139,6 @@ export const fetchRadialCurve = createAsyncThunk("radial/fetch", async (_, { get
   const wellboreRadiusIn = radial.wellboreSizeMode === "diameter" ? radial.wellboreSize / 2 : radial.wellboreSize;
   const beta = computeBeta(wellboreRadiusIn);
 
-  // The backend contract expects targets in the CURRENT display unit
-  // (ft for "length", skin for "skin"), not lambda -- lambda is only
-  // the frontend's internal canonical representation.
   const targets = radial.targetsLambda.map((lambda) =>
     radial.targetMode === "length" ? lambdaToFt(lambda, L_CHAR) : lambdaToSkin(lambda, beta)
   );
@@ -202,13 +181,6 @@ export const fetchRadialCurve = createAsyncThunk("radial/fetch", async (_, { get
   return data;
 });
 
-// Bug (2026-09): flowRegime nunca era persistido -- resetava pra "linear"
-// em toda recarga, mesmo com curvas radiais salvas em resultCurves
-// (storageresults/slice.tsx, que ESSE sim persiste via localStorage). O
-// filtro por regime em Chart.tsx/Results.tsx (ver comentarios la) so evita
-// misturar curvas de regimes diferentes; sem restaurar flowRegime tambem,
-// o usuario cai sempre na aba Linear e as curvas radiais ficam "escondidas"
-// (filtradas fora) ate ele trocar manualmente pra Radial de novo.
 const FLOW_REGIME_STORAGE_KEY = "radialFlowRegime";
 
 function loadPersistedFlowRegime(): FlowRegime {
@@ -231,8 +203,6 @@ const radialSlice = createSlice({
     processed: false,
     outputMode: "pvbt" as OutputMode,
     curves: [] as RadialCurveResult[],
-    // l_ft (Fase 8): comprimento do wormhole por ponto, devolvido pelo
-    // backend (generate_skin_evolution) para a tabela por aba -- antes so x/y.
     skinEvolutionData: {} as Record<string, {x: number, y: number, l_ft: number}[]>,
     skinEvolutionLoading: false,
     skinEvolutionError: false,
@@ -258,15 +228,9 @@ const radialSlice = createSlice({
       state.drainageRadius = drainageRadius;
     },
     setTargetMode: (state, action) => {
-      // Only changes how targetsLambda is RENDERED. The canonical
-      // targetsLambda array itself is never touched here -- see
-      // targetConversion.ts for why.
       state.targetMode = action.payload;
     },
     addTarget: (state, action) => {
-      // action.payload must already be lambda (dimensionless) --
-      // convert with parseTargetInput() at the call site, never
-      // dispatch the raw text/number the user typed.
       if (state.targetsLambda.length >= 6) return;
       state.targetsLambda.push(action.payload);
     },
@@ -310,16 +274,6 @@ const radialSlice = createSlice({
     removeDesignTemperature: (state, action) => {
       state.designTemperatures.splice(action.payload, 1);
     },
-    // Item 3 (cache/persistencia): "abrir" uma simulacao radial salva no
-    // IndexedDB (tools/simulationStoreIO.ts) restaura o grafico/tabela com
-    // os dados EXATOS congelados naquele snapshot -- curves/design/skin ja
-    // vem prontos do chamador (curves convertidas de volta pro formato
-    // RadialCurveResult via exportSimulations.toRawRadialCurve, MESMA
-    // funcao que o export ja usava). lastRunSetup e so o minimo pra
-    // isActiveRadialRun/export tratarem essa simulacao como valida depois.
-    // NAO toca wellboreSize/targetsLambda/etc: se o usuario depois visitar
-    // as abas Design/Skin, Chart.tsx ja refaz o fetch com a config ATUAL do
-    // formulario (comportamento existente, fora de escopo mudar aqui).
     restoreRadialSnapshot: (state, action) => {
       const p = action.payload as {
         simulationId: string;

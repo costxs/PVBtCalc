@@ -2,19 +2,17 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 import handleAuthError from "../services/fetchAuth";
 import { API_BASE } from "../../services/api";
-// 🔹 Criando a Action Assíncrona para buscar funcionários
 export const fetchCurve = createAsyncThunk("curve/fetch", async (_, {getState, dispatch}) => {
     const state = getState() as RootState
     const setup = state.setup
     const token = state.user.token
     const setupEntries = Object.entries(setup);
-    // Removendo o primeiro e o último item
     const filteredSetup = Object.fromEntries(setupEntries.slice(1, -1));
     const response = await fetch(`${API_BASE}/pvbtcurve`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json", // Informar que estamos enviando JSON
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(filteredSetup),
     });
@@ -24,7 +22,6 @@ export const fetchCurve = createAsyncThunk("curve/fetch", async (_, {getState, d
   });
   
 
-// 🔹 Criando o Slice do Redux
 const resultSlice = createSlice({
   name: "results",
   initialState: {
@@ -44,9 +41,6 @@ const resultSlice = createSlice({
     timeToBt:[],
     wormholeVelocity:[],
     darcyVelocity:[],
-    // Janela de validade da vazao no regime linear (Fase 6). Arrays paralelos
-    // a flowratePoints (SoA), mesmo padrao que radial/slice.tsx. metadata em
-    // cm3/min; null quando o backend nao achou q_opt interior (degradacao).
     statusPoints: [] as string[],
     withinValidityRange: [] as boolean[],
     metadata: null as Record<string, number> | null,

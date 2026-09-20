@@ -5,23 +5,6 @@ import { groupSimulations } from "../tools/exportSimulations";
 import { upsertSnapshot, listSnapshotSummaries, getSnapshot } from "../tools/simulationStoreIO";
 import { openSnapshotIntoRedux } from "../tools/simulationRestore";
 
-/**
- * SimulationPersistence.tsx
- * ------------------------------------------------------------------
- * Item 3 (cache/persistencia) -- componente invisivel (montado uma vez em
- * App.tsx) que faz o trabalho de fundo:
- *   1) auto-salva no IndexedDB (tools/simulationStoreIO.ts) toda vez que
- *      uma simulacao (linear ou radial) termina de calcular;
- *   2) upsert incremental quando Design Plot / Skin chegam DEPOIS (so sao
- *      buscados quando o usuario visita aquelas abas, Chart.tsx);
- *   3) ao abrir o app, restaura a simulacao radial mais recente salva --
- *      radialState.curves/designPlotData/skinEvolutionData SEMPRE comecam
- *      vazios num reload (nunca foram persistidos antes desta feature),
- *      diferente de resultCurves (que ja persistia via localStorage).
- *
- * Nao recalcula nada: so espelha pro IndexedDB o que ja esta no Redux, e
- * repoe no Redux o que ja estava no IndexedDB.
- */
 export default function SimulationPersistence() {
   const dispatch = useDispatch();
   const { curves, ids } = useSelector((state: RootState) => state.resultCurves);
@@ -66,7 +49,7 @@ export default function SimulationPersistence() {
   }, [radialState.skinEvolutionData, radialState.lastRunSetup]);
 
   useEffect(() => {
-    if (radialState.curves.length > 0) return; // ja tem algo carregado -- nao pisar em cima
+    if (radialState.curves.length > 0) return;
     (async () => {
       const summaries = await listSnapshotSummaries();
       const latestRadial = summaries.find((s) => s.flowRegime === "radial");

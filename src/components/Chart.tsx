@@ -10,17 +10,12 @@ import { getOptimalPointsForDesign } from "../tools/chartDataUtils";
 import DesignPlotReader from "./DesignPlotReader";
 import { Chip, ChipRow, SegmentedControl, toggleInSet } from "./ChartControls";
 import { splitByValidity, collectValidityOffenders, readValidity, fmtBblMin, fmtRatio } from "../tools/validityWindow";
+import { analyzeLinearOptimum, linearOptimumMarker } from "../tools/linearExport";
 import { resolveAxisLimit } from "../tools/axisLimits";
 import { SEVERITY_COLORS } from "../tools/pointSeverity";
 import { setVisibleChart } from "../redux/ui/slice";
 import { selectLinearChartCurves, selectRadialChartCurves, toValidityAwareCurves } from "../tools/chartCurveSelectors";
 
-// Rotulos do crosshair do Design Plot (guidedReadingMarkPointData, abaixo):
-// toFixed(3)/toFixed(4) fixo produzia "15.000" -- em pt-BR (ponto de milhar)
-// isso le como "quinze mil", nao "quinze virgula zero". 3 algarismos
-// significativos com ponto decimal (mesma convencao do resto do app, que ja
-// usa "." em unidades como "gal/(ft.min)") remove a ambiguidade sem trocar
-// pra virgula: "V = 15.0", "q = 0.241".
 const fmtSig3 = (v: number): string => (Number.isFinite(v) ? v.toPrecision(3) : String(v));
 
 const toLogDecadeAxis = (lo: number | undefined, hi: number | undefined) => {
@@ -31,26 +26,11 @@ const toLogDecadeAxis = (lo: number | undefined, hi: number | undefined) => {
   };
 };
 
-// Trecho fora da janela validada: cinza tracejado. Vermelho fica reservado
-// para erro numerico de verdade (status !== "ok"), nunca para "fora da janela".
 const OUT_OF_WINDOW_GRAY = "#616161";
-const OUT_OF_WINDOW_BAND = "rgba(97,97,97,0.05)"; // Opacidade reduzida para evitar que faixas sobrepostas fiquem pretas
+const OUT_OF_WINDOW_BAND = "rgba(97,97,97,0.05)";
 
-// Paleta padrao do ECharts 5. Fixada explicitamente porque cada curva (radial
-// OU linear, Fase 7.3) agora emite 2 series (solid + dashed) -- sem cor
-// explicita o auto-assign pulava uma cor por curva. Cor estavel por indice:
-// nao pisca entre renders (era Math.random() no ramo linear) e o markArea da
-// 7.4 pinta a faixa de fundo na cor da curva dona daquele trecho.
 const CURVE_PALETTE = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
 
-// Fase 7.7: range do eixo Y calculado SO com pontos dentro da janela de
-// validade. `solid` (splitByValidity) ja e exatamente o conjunto de vertices
-// confiaveis -- reusamos ele, sem inventar um segundo mecanismo de filtro.
-// Pontos fora da janela seguem desenhados (tracejado) mas podem sair da area
-// visivel: a propria pesquisa ja mostrou que nao representam comportamento
-// fisico real. Nenhuma curva com ponto dentro da janela => undefined
-// (auto-range do ECharts, fallback -- senao o eixo ficaria sem referencia).
-// isLog: margem multiplicativa e so entram valores > 0.
 const validityYRange = (
   solids: ([number, number] | null)[][],
   isLog: boolean,
@@ -83,7 +63,7 @@ const validityYRange = (
 // reusamos o mesmo conjunto "dentro da janela validada" que a Fase 7.7 usa
 // para o range: pontos fora da janela sao blow-ups conhecidos (nao-fisicos) e
 // nao devem forcar log sozinhos.
-const Y_LOG_AUTO_RATIO = 1000; // calibrado para o Simulation; mesma grandeza no Analysis
+const Y_LOG_AUTO_RATIO = 1000;
 
 const spansOrders = (values: (number | null | undefined)[]): boolean => {
   const pos = values.filter(
@@ -93,7 +73,6 @@ const spansOrders = (values: (number | null | undefined)[]): boolean => {
   const lo = Math.min(...pos);
   const hi = Math.max(...pos);
   const ratio = hi / lo;
-  // TEMP (debug auto Y-Log): razao exata usada na comparacao. REMOVER.
   console.log("[auto-Y-Log] spansOrders", { n: pos.length, lo, hi, ratio, threshold: Y_LOG_AUTO_RATIO });
   return ratio >= Y_LOG_AUTO_RATIO;
 };
@@ -105,13 +84,6 @@ const ChartComponent = () => {
   const radialState = useSelector((state: RootState) => state.radial);
   const { flowRegime, curves: radialCurves, processed: radialProcessed, skinEvolutionData, designPlotData } = radialState;
 
-  // Export (Chart.tsx export buttons): radialState.curves e o payload CRU do
-  // backend (RadialCurveResult, chaves snake_case: flowratepoints, target_label,
-  // etc.) -- so serve pro grafico. export.tsx precisa das curvas camelCase de
-  // state.resultCurves (mesma fonte da tabela Simulation/Analysis, com
-  // rock/acid/porosity/concentration/metadata), filtradas para o RUN atual
-  // (lastRunSetup.id, nao o `id` do campo ao vivo -- que pode ter mudado sem
-  // recalcular).
   const currentSimulationId: string = radialState.lastRunSetup?.id ?? '';
   const radialSimulationCurves = flowRegime === 'radial' && currentSimulationId
     ? curves.filter((c) => c.flowRegime === 'radial' && c.id.startsWith(`${currentSimulationId} · `))
@@ -148,35 +120,15 @@ const ChartComponent = () => {
   const [skinChartOptions, setSkinChartOptions] = useState({});
   const [xisLog, setxIsLog] = useState(false);
   const [yisLog, setyIsLog] = useState(false);
-  // Latch da Item 1: enquanto false, `yisLog` e derivado do dado (auto Y-Log);
-  // no primeiro clique do usuario na checkbox Y-Log vira true e a escolha
-  // manual passa a mandar -- auto-deteccao para de sobrescrever pelo resto da
-  // sessao. Nao reseta em novo Calculate (decisao simples; revisar se incomodar).
   const [userToggledYLog, setUserToggledYLog] = useState(false);
   const [grid, setGrid] = useState(true);
 
-  // Quadro de controle acima do grafico (substitui a legenda nativa do
-  // ECharts, Design/Simulation-radial/Skin). Estado mora aqui, no componente
-  // PAI do AnimatePresence -- os motion.div dos graficos sao desmontados a
-  // cada troca de aba (mode="wait"), entao guardar isto dentro deles perderia
-  // a selecao ao voltar pra aba. Reseta (tudo ligado) so quando chega dado
-  // novo de uma simulacao (nao a cada troca de aba).
   const [designActiveTemps, setDesignActiveTemps] = useState<Set<string>>(new Set());
   const [designSeriesFilter, setDesignSeriesFilter] = useState<'rate' | 'volume' | 'both'>('both');
   const [simActiveTargets, setSimActiveTargets] = useState<Set<string>>(new Set());
   const [simShowOptimumPath, setSimShowOptimumPath] = useState(true);
   const [skinActiveFlowrates, setSkinActiveFlowrates] = useState<Set<string>>(new Set());
 
-
-  // Assinatura estavel do CONJUNTO de temperaturas, nao a referencia de
-  // designPlotData -- Chart.tsx:~275 refaz fetchDesignPlot toda vez que a
-  // aba 'design' fica ativa (mesmo sem novo Calculate), entao o objeto muda
-  // de identidade a cada troca de aba mesmo com as MESMAS temperaturas.
-  // Resetar direto em designPlotData apagaria os chips ligados/desligados
-  // toda vez que o usuario voltasse pra aba -- exatamente o que o pedido
-  // ("trocar de aba e voltar, estado mantido") proibe. So reseta quando o
-  // conjunto de temperaturas de verdade muda (novo Calculate ou temperatura
-  // de comparacao adicionada/removida).
   const designTempsKey = designPlotData?.series?.map((s: any) => s.temperature_k).slice().sort().join('|') ?? '';
   useEffect(() => {
     if (designPlotData?.series?.length) {
@@ -198,14 +150,6 @@ const ChartComponent = () => {
     if (keys.length > 0) setSkinActiveFlowrates(new Set(keys));
   }, [skinEvolutionData]);
 
-  // Selector unico por regime: exatamente as curvas que o Simulation Chart
-  // desenha. Banner de validade e desenho do grafico leem DESTE MESMO array
-  // -- nunca dois filtros paralelos, que foi como divergiram (banner linear
-  // lia `curves` cru, sem o filtro de regime que o desenho ja tinha, e uma
-  // curva radial sobrevivente em state.resultCurves vazava pro banner
-  // Linear). radial: so as curvas com chip ligado (simActiveTargets), igual
-  // ao que allCurvesSeries desenha. linear: mesmo filtro de regime +
-  // flowratePoints que o ramo de desenho usa (matchesFlowRegime).
   const radialChartCurves = useMemo(
     () => selectRadialChartCurves(radialCurves, simActiveTargets),
     [radialCurves, simActiveTargets],
@@ -215,16 +159,10 @@ const ChartComponent = () => {
     [curves],
   );
 
-  // Resumo agregado (contagem + pior ponto) para o banner de validade,
-  // sempre sobre *ChartCurves acima (o que esta de fato no grafico).
   const radialValidity = flowRegime === 'radial'
     ? collectValidityOffenders(radialChartCurves)
     : { count: 0, curvesAffected: 0, worst: null };
 
-  // Fase 7.5: mesmo resumo do banner radial, agora no ramo linear. O store
-  // linear (storageresults) usa chaves camelCase; collectValidityOffenders
-  // espera o contrato ValidityAwareCurve (snake_case, igual ao radial) --
-  // toValidityAwareCurves adapta.
   const linearValidity = flowRegime === 'linear'
     ? collectValidityOffenders(toValidityAwareCurves(linearChartCurves))
     : { count: 0, curvesAffected: 0, worst: null };
@@ -235,21 +173,12 @@ const ChartComponent = () => {
   const [yLimit, setyLimit] = useState(['', '']);
   const [guidedReading, setGuidedReading] = useState<any>(null);
 
-  // Item 1 (auto Y-Log): valor sugerido para `yisLog`, calculado do dado do
-  // grafico VISIVEL. Analysis (B) -> pvbtPoints crus. Simulation linear (A) ->
-  // pontos DENTRO da janela validada de todas as curvas salvas (mesmo filtro
-  // da Fase 7.7). Simulation radial -> null (eixo log fixo, nada a sugerir).
   const autoYLog = useMemo<boolean | null>(() => {
     if (visibleChart === 'B') {
       const yValues = flowRegime === 'radial' ? analyse.volumeToBt : analyse.pvbtPoints;
       return spansOrders(yValues || []);
     }
     if (visibleChart === 'A' && flowRegime === 'linear') {
-      // Bug (2026-09): sem o filtro de regime, uma curva radial salva
-      // (sobrevive a reload via localStorage) entrava nesse array e podia
-      // virar a sugestao de Y-Log do grafico Linear com base em magnitudes
-      // de outro regime. linearChartCurves ja aplica esse filtro (mesmo
-      // selector usado pelo desenho da serie e pelo banner de validade).
       const ys = linearChartCurves
         .flatMap(c => {
           const pts = (c.outputMode === 'volume' ? c.acidVolumePoints : c.pvbtPoints) || [];
@@ -261,9 +190,6 @@ const ChartComponent = () => {
     return null;
   }, [visibleChart, flowRegime, analyse.pvbtPoints, linearChartCurves]);
 
-  // Aplica a sugestao enquanto o usuario nao tiver mexido na checkbox Y-Log.
-  // setyIsLog com o mesmo valor e no-op no React -- sem loop com os effects
-  // de montagem do grafico (que tem yisLog nas deps).
   useEffect(() => {
     if (!userToggledYLog && autoYLog !== null) setyIsLog(autoYLog);
   }, [autoYLog, userToggledYLog]);
@@ -286,20 +212,12 @@ const ChartComponent = () => {
     }
   }, []);
 
-
-
   useEffect(() => {
     if (visibleChart === 'design' && flowRegime === 'radial' && radialProcessed) {
       dispatch(fetchDesignPlot() as any);
     }
   }, [visibleChart, flowRegime, radialProcessed, dispatch]);
 
-  // Layout fix: Radial agora usa a MESMA coluna de grid do Linear (App.tsx),
-  // que muda de 2 colunas para empilhado no breakpoint `lg` -- a largura do
-  // container do grafico ativo muda nesse cruzamento. echarts-for-react ja
-  // observa o elemento via ResizeObserver (size-sensor) e chama resize()
-  // sozinho na maioria dos casos; este listener e so um reforco explicito
-  // (pedido) para garantir o resize mesmo se o sensor demorar/nao disparar.
   useEffect(() => {
     let raf = 0;
     const onResize = () => {
@@ -327,7 +245,6 @@ const ChartComponent = () => {
   const optSetup = useSelector((state: RootState) => state.optSetup);
   const sweepParameter = optSetup?.analitical_param;
 
-  // Mapa para definir o título do Eixo X com base no sweepParameter
   const getXAxisName = (param?: string) => {
     switch (param) {
       case 'temperature':
@@ -353,10 +270,6 @@ const ChartComponent = () => {
 
   useEffect(() => {
     const isRadial = flowRegime === 'radial';
-    // Analysis Chart mantem a escala padrao no radial: X sempre linear
-    // (checkbox X-Log removido nesse regime, `xisLog` deixa de ser
-    // consultado), Y ja era sempre log/value fixo por isRadial (nunca leu
-    // yisLog). `opt` (checkbox removido no radial) tambem sai do marker.
     const xAxisIsLog = !isRadial && xisLog;
     const yAxisIsLog = isRadial;
     const showOptimumMarker = !isRadial && opt;
@@ -442,23 +355,12 @@ const ChartComponent = () => {
   }, [analyse, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, xLimit, yLimit, grid, flowRegime, sweepParameter]);
 
   useEffect(() => {
-    // Compartilhado pelos dois ramos (radial e linear): arredonda o vertice
-    // [x,y] que splitByValidity emite, preservando o null que quebra a linha.
     const round4 = (p: [number, number] | null) =>
       p == null ? null : [Number(p[0].toFixed(4)), Number(p[1].toFixed(4))];
 
     if (flowRegime === 'radial') {
-      // Cada curva vira DOIS traces de mesmo nome (1 item de legenda controla
-      // os dois): solid = dentro da janela (cor da curva), dashed cinza = fora.
-      // splitByValidity injeta o vertice exato do cruzamento nos dois, entao
-      // os segmentos se encontram na borda sem buraco. markArea sombreia o
-      // fundo fora da janela -- por curva, e faixas de curvas distintas se
-      // somam visualmente (opacidade baixa).
       const solids: ([number, number] | null)[][] = [];
       const dasheds: ([number, number] | null)[][] = [];
-      // Quadro de controle (chips por alvo, ver JSX) substitui a legenda:
-      // curva desligada nem entra em solids/dasheds (Y-log range e a serie
-      // de otimo tambem reagem, so isso -- nenhum dado recalculado).
       const allCurvesSeries = radialChartCurves.flatMap((curve, ci) => {
         const curveColor = CURVE_PALETTE[ci % CURVE_PALETTE.length];
         const fps = curve.flowratepoints || [];
@@ -471,21 +373,13 @@ const ChartComponent = () => {
         solids.push(solid);
         dasheds.push(dashed);
 
-        // Borda externa da faixa = extremo REAL do sweep (fps[0] / ultimo)
         const meta = curve.metadata;
         const markAreaData: { xAxis: number }[][] = [];
         if (meta && bandBelow) markAreaData.push([{ xAxis: fps[0] }, { xAxis: Number(meta.validity_min_gal_ft_min.toFixed(4)) }]);
         if (meta && bandAbove) markAreaData.push([{ xAxis: Number(meta.validity_max_gal_ft_min.toFixed(4)) }, { xAxis: fps[fps.length - 1] }]);
 
-        // O marcador verde de "Minimo" por curva (antes controlado pelo
-        // checkbox "PVBt Optimum", removido no radial) saiu -- o otimo deste
-        // grafico agora e so o chip "Optimum path" (serie agregada abaixo).
         const markPointData: any[] = [];
 
-        // Marcadores de fronteira da janela de validade: SEM rotulo (Item 5) --
-        // so um circulo mudo no ponto de transicao solid/dashed. O nome da
-        // curva vai num marcador separado, no ultimo ponto de verdade da
-        // curva, pra nao ser confundido com o limite de validade.
         if (meta && bandBelow) {
           const firstSolid = solid.find(p => p !== null);
           if (firstSolid) {
@@ -511,9 +405,6 @@ const ChartComponent = () => {
           }
         }
 
-        // Rotulo identificador da curva ("5.00 ft" etc.): no ultimo ponto
-        // plotado de verdade (fim do tracejado quando existe, senao fim do
-        // solido), a direita -- nunca no limite de validade.
         const curveEndPoint = [...dashed].reverse().find(p => p !== null) ?? [...solid].reverse().find(p => p !== null);
         if (curveEndPoint) {
           markPointData.push({
@@ -587,9 +478,6 @@ const ChartComponent = () => {
         ? toLogDecadeAxis(Math.min(...allPlottedYs), Math.max(...allPlottedYs))
         : undefined;
 
-      // X sempre linear, Y sempre log neste grafico (Item 1) -- isLog aqui e
-      // so pra validar o limite manual (Mín > 0 em log), nunca pra decidir o
-      // tipo do eixo.
       const xResRadialSim = xdefinedLimit ? resolveAxisLimit(xLimit[0], xLimit[1], false) : {};
       const yResRadialSim = ydefinedLimit ? resolveAxisLimit(yLimit[0], yLimit[1], true) : {};
 
@@ -603,9 +491,7 @@ const ChartComponent = () => {
             paramArray.forEach((item) => {
               const it = item as any;
               if (it.seriesName === "Optimum injection rates path") return;
-              // ponto de quebra (null) do trace solid ou dashed
               if (it.value == null || it.value[1] == null) return;
-              // solid + dashed compartilham nome: uma linha so por curva
               if (seen.has(it.seriesName)) return;
               seen.add(it.seriesName);
               tooltipContent += `
@@ -618,8 +504,6 @@ const ChartComponent = () => {
             return tooltipContent;
           }
         },
-        // Legenda nativa desligada -- substituida pelo quadro de controle
-        // (chips por alvo + chip "Optimum path") acima do grafico, ver JSX.
         legend: { show: false },
         toolbox: { top: 10, right: 10, feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, myResetZoom: { show: true, title: 'Reset Zoom', icon: 'path://M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z', onclick: () => { const chart = (chartRefA.current as any); if (chart) { chart.getEchartsInstance().dispatchAction({ type: 'dataZoom', start: 0, end: 100 }); } } } } },
         dataZoom: [
@@ -646,26 +530,14 @@ const ChartComponent = () => {
           logBase: 10,
           min: yResRadialSim.min ?? (simRadialLogAxis?.min ?? undefined),
           max: yResRadialSim.max ?? (simRadialLogAxis?.max ?? undefined),
-          // Item 3: linha de grade em TODA decada, sempre -- so o TEXTO do
-          // rotulo pode pular (a cada 2 decadas) quando o eixo cobre mais de
-          // 6 decadas, pra nao amontoar. splitLine/axisTick com interval:0
-          // ignoram o algoritmo de auto-espacamento do ECharts (que senao
-          // decide sozinho quais decadas mostrar, igual ao axisLabel).
           splitLine: { show: grid, interval: 0 },
           axisTick: { interval: 0 },
           axisLabel: {
-            // Decadas do eixo REALMENTE renderizado (limite manual, quando
-            // ativo, tem prioridade sobre o auto) -- decide pular rotulo
-            // alternado (>6 decadas) olhando pro range que vai pra tela, nao
-            // so o auto por tras dele.
             interval: (() => {
               const effMin = yResRadialSim.min ?? simRadialLogAxis?.min;
               const effMax = yResRadialSim.max ?? simRadialLogAxis?.max;
               return effMin && effMax && (Math.log10(effMax) - Math.log10(effMin)) > 6 ? 1 : 0;
             })(),
-            // >=1e6: notacao cientifica (1e9, 1e12, ...) em vez de "bi"/"tri"
-            // compacto -- mais claro pra ordem de grandeza de volume de acido.
-            // Abaixo disso, separador pt-BR (ponto de milhar) como antes.
             formatter: (val: number) =>
               Math.abs(val) >= 1e6
                 ? val.toExponential(0).replace('+', '')
@@ -698,37 +570,11 @@ const ChartComponent = () => {
         ],
       });
     } else {
-      // Bug (2026-09): sem esse filtro por regime, uma curva radial salva
-      // (resultCurves persiste em localStorage, sobrevive a reload) entrava
-      // aqui igual e era desenhada como se fosse linear -- flowRegime
-      // undefined so existe em curvas salvas ANTES do campo existir
-      // (legado), tratadas como linear por serem dessa epoca.
       const validCurves = linearChartCurves;
       const allOutputModes = validCurves.map((curve) => curve.outputMode).filter(Boolean);
       const allVolume = allOutputModes.length > 0 && allOutputModes.every((m) => m === 'volume');
       const yAxisName = allVolume ? "Acid Volume (gal)" : "PVBt";
 
-      // Fase 7.3: espelha o ramo radial -- cada curva vira DOIS traces de
-      // mesmo nome (1 item de legenda controla os dois): solid = dentro da
-      // janela recomendada, dashed CINZA neutro = fora. Vermelho fica
-      // reservado a erro numerico de verdade (status !== "ok"), marcado por
-      // linha na tabela (Results.tsx), nunca aqui. splitByValidity (DOM-free,
-      // testada) injeta o vertice do cruzamento nos dois traces; o interpY
-      // dela e geometrico (casa com Y-log) -- diferenca desprezivel no Y
-      // linear sob smooth:true. Banner fica para 7.5.
-      //
-      // Fase 7.4: markArea sombreia o fundo FORA da janela -- por curva,
-      // reusando bandBelow/bandAbove do splitByValidity (mesma funcao, sem
-      // calculo novo). Cinza OUT_OF_WINDOW_BAND (mesma base #616161 da linha
-      // tracejada); nunca vermelho (erro numerico) nem amarelo (colide com
-      // CURVE_PALETTE[2]). Limite interno da unidade linear via readValidity
-      // (Fase 7.1); borda externa = extremo REAL do sweep (fps[0] / ultimo),
-      // nao {xAxis:'min'|'max'} -- esses resolvem para o menor/maior x que
-      // sobrou NA SERIE, e splitByValidity descarta o x dos pontos clipped
-      // (null puro), entao a faixa ancorava no 1o ponto nao clipado.
-      // Rodadas distintas se somam em opacidade baixa, sem logica de uniao.
-      // metadata=null (sem otimo interior) => sem faixa, mesmo "silencio" da
-      // linha (7.3) e do banner (7.5) -- mesmo codepath do 7.6.
       const solids: ([number, number] | null)[][] = [];
 
       const allCurvesSeries = validCurves.flatMap((curve, ci) => {
@@ -749,13 +595,14 @@ const ChartComponent = () => {
         if (v && bandAbove) markAreaData.push([{ xAxis: Number(v.max.toFixed(4)) }, { xAxis: fps[fps.length - 1] }]);
 
         const markPointData: any[] = [];
-        if (opt) {
+        const optMarker = opt ? linearOptimumMarker(analyzeLinearOptimum(curve), fps) : null;
+        if (optMarker) {
           markPointData.push({
-            type: "min",
-            name: isPt ? "Mínimo" : "Minimum",
+            coord: [Number(optMarker.x.toFixed(4)), Number(optMarker.y.toFixed(4))],
+            name: isPt ? "Ótimo" : "Optimum",
             symbolSize: 30,
             label: {
-              formatter: "optimum: {@[1]}",
+              formatter: `optimum: ${Number(optMarker.y.toFixed(4))}`,
               position: "top",
               color: "#fff",
               backgroundColor: "#24a424",
@@ -826,7 +673,6 @@ const ChartComponent = () => {
         ];
       });
 
-      // yAxis linear acompanha o toggle Y-Log.
       const yRange = validityYRange(solids, yisLog);
       const xResLinearSim = xdefinedLimit ? resolveAxisLimit(xLimit[0], xLimit[1], xisLog) : {};
       const yResLinearSim = ydefinedLimit ? resolveAxisLimit(yLimit[0], yLimit[1], yisLog) : {};
@@ -840,9 +686,7 @@ const ChartComponent = () => {
             const seen = new Set<string>();
             paramArray.forEach((item) => {
               const it = item as any;
-              // ponto de quebra (null) de um dos traces solid/dashed (Fase 7.3)
               if (it.value == null || it.value[1] == null) return;
-              // solid + dashed compartilham nome: uma linha so por curva
               if (seen.has(it.seriesName)) return;
               seen.add(it.seriesName);
               tooltipContent += `
@@ -889,8 +733,6 @@ const ChartComponent = () => {
 
   useEffect(() => {
     if (visibleChart === 'design' && flowRegime === 'radial' && designPlotData?.series?.length) {
-      // 1. Calcular os limites dos dados já cortados (backend descarta
-      // v_opt_norm > 1000 gal/ft em generate_design_plot, PVBTradialFunc.py)
       const allRates = designPlotData.series.flatMap((s: any) => s.optimum_rate_series.map((pt: any) => pt[0]));
       const allVols = designPlotData.series.flatMap((s: any) => s.optimum_volume_series.map((pt: any) => pt[0]));
       const allLengths = designPlotData.series.flatMap((s: any) => s.optimum_rate_series.map((pt: any) => pt[1]));
@@ -902,15 +744,9 @@ const ChartComponent = () => {
       const lengthMin = allLengths.length ? Math.min(...allLengths) : 1;
       const lengthMax = allLengths.length ? Math.max(...allLengths) : 20;
 
-      // Eixo Y arredondado para decadas inteiras (como a Fig. 38 do artigo:
-      // 1 a 100), nao lengthMin/10..lengthMax*10 -- essa folga de uma decada
-      // por ponta comprime as curvas e anuncia comprimentos inexistentes, e
-      // pior, faz o ECharts descartar (sem cortar) qualquer segmento de seta
-      // que aponte fora da extensao auto-calculada do eixo.
       const yAxisMin = Math.pow(10, Math.floor(Math.log10(lengthMin)));
       const yAxisMax = Math.pow(10, Math.ceil(Math.log10(lengthMax)));
 
-      // Regra do artigo (Fig. 29/38): os dois eixos X NAO sao auto-fit independentes
       const decRate = Math.log10(rateMax / rateMin);
       const decVol = Math.log10(volMax / volMin);
       const W = Number.isFinite(decRate) && Number.isFinite(decVol) && decRate >= 0 && decVol >= 0
@@ -926,25 +762,10 @@ const ChartComponent = () => {
       
       const rateToVolFactor = volAxisMin / rateAxisMin;
 
-      // Item 2: Y Limits vale para os dois eixos Y (mesmo Wormhole Length,
-      // espelhados). X Limits vale so pro eixo de Rate (inferior) -- o eixo
-      // de Volume (superior) e o par mapeado dele (Fig. 29/38 do artigo,
-      // relacao FIXA por decadas via rateToVolFactor/W_int) e continua
-      // decada-arredondado a partir do DADO, sem tocar nele aqui.
       const yResDesign = ydefinedLimit ? resolveAxisLimit(yLimit[0], yLimit[1], true) : {};
       const xResDesignRate = xdefinedLimit ? resolveAxisLimit(xLimit[0], xLimit[1], true) : {};
 
-      // Preparar as setas da leitura guiada (markLine)
       let guidedReadingMarkLineData: any[] = [];
-      // Rotulos com o valor REAL (r.qOpt/r.vOpt/r.length), nao qX_mapped --
-      // qX_mapped e so a posicao (mapeada para o espaco do eixo de volume,
-      // ja que o markLine/markPoint esta pendurado na serie "Volume",
-      // xAxisIndex 1). O crosshair nativo do ECharts nao serve para isso:
-      // com 2 eixos X e so a serie Volume tendo dado de verdade no ponto,
-      // o rotulo que o usuario via vinha por cima do segmento errado e com
-      // o numero de posicao (qX_mapped), nao o valor fisico (bug reportado
-      // apos verificacao visual, ver conversa). Marcador explicito fixa
-      // posicao E valor ao mesmo tempo, sem depender do axisPointer.
       let guidedReadingMarkPointData: any[] = [];
       if (guidedReading && guidedReading.reading) {
         const r = guidedReading.reading;
@@ -964,8 +785,6 @@ const ChartComponent = () => {
               color: 'purple',
               fontSize: 10,
               fontWeight: 'bold',
-              // Fundo semitransparente -- o rotulo fica em cima das curvas
-              // do grafico e ficava ilegivel sem contraste.
               backgroundColor: 'rgba(255,255,255,0.85)',
               padding: [2, 4],
               formatter: `V = ${fmtSig3(r.vOpt)} gal/ft`,
@@ -997,9 +816,6 @@ const ChartComponent = () => {
             silent: true
         };
 
-        // Setas terminam exatamente nas bordas do eixo Y RENDERIZADO (auto ou
-        // Y Limits manual, quando ativo) -- nunca fora delas, senao o
-        // ECharts descarta o segmento inteiro em vez de corta-lo.
         const yTop = yResDesign.max ?? yAxisMax;
         const yBottom = yResDesign.min ?? yAxisMin;
 
@@ -1027,11 +843,6 @@ const ChartComponent = () => {
         }
       }
 
-      // Quadro de controle (acima do grafico, ver JSX) substitui a legenda
-      // nativa: filtra as series aqui em vez de depender do
-      // legend.selected/dispatchAction do ECharts, que vive dentro da
-      // instancia e se perderia quando o AnimatePresence desmonta o grafico
-      // ao trocar de aba (o pedido explicito e manter o estado ao voltar).
       const designSeries = designPlotData.series.flatMap((s: any, idx: number) => {
           const color = CURVE_PALETTE[idx % CURVE_PALETTE.length];
           if (!designActiveTemps.has(String(s.temperature_k))) return [];
@@ -1083,14 +894,6 @@ const ChartComponent = () => {
       setDesignChartOptions({
         tooltip: {
           trigger: 'axis',
-          // snap:false -- so nao, o rotulo do crosshair do eixo Y fica
-          // atrelado a serie que tem dado no ponto (Volume, xAxisIndex 1);
-          // como o eixo espelhado da direita (yAxis[1]) nao tem NENHUMA
-          // serie pendurada nele, ele nao tem o que "encaixar" (snap) e cai
-          // no valor continuo puro do pixel do mouse -- os dois rotulos
-          // divergiam (um encaixado na grade, outro continuo) mesmo com
-          // min/max identicos nos dois eixos. Sem snap, os dois leem a
-          // mesma transformacao continua pixel->valor e ficam identicos.
           axisPointer: { type: 'cross', axis: 'y', snap: false },
           formatter: function(params: any) {
             if (!params || !params.length) return "";
@@ -1105,10 +908,6 @@ const ChartComponent = () => {
             return html;
           }
         },
-        // Legenda nativa desligada -- substituida pelo quadro de controle
-        // (chips de temperatura + segmented Rate/Volume/Ambos) acima do
-        // grafico, ver JSX. Nomes das series ficam (tooltip/crosshair ainda
-        // usam seriesName).
         legend: { show: false },
         grid: { 
           top: 80, 
@@ -1122,7 +921,6 @@ const ChartComponent = () => {
           { type: 'inside', xAxisIndex: [0, 1], filterMode: 'none' },
           { type: 'slider', xAxisIndex: [0, 1], bottom: 4, height: 14, showDataShadow: false, handleSize: '80%', showDetail: false, filterMode: 'none' }
         ],
-        // EIXOS Y (Duplos: esquerda e direita)
         yAxis: [
           {
             type: 'log',
@@ -1135,10 +933,6 @@ const ChartComponent = () => {
             splitLine: { show: grid }
           },
           {
-            // Mesmo min/max do eixo esquerdo -- se divergirem, o eixo
-            // espelhado da direita mostra outra escala e a leitura lateral
-            // fica errada de forma silenciosa (cada eixo parece certo
-            // isoladamente).
             type: 'log',
             position: 'right',
             name: 'Wormhole Length, ft',
@@ -1151,11 +945,8 @@ const ChartComponent = () => {
           }
         ],
 
-        // EIXOS X (Duplo)
         xAxis: [
             {
-                // 1. EIXO INFERIOR (Rate) -- X Limits so vale pra este; o de
-                // Volume (par mapeado, abaixo) fica de fora de proposito.
                 type: 'log',
                 name: 'Optimum Injection Rate, gal/(ft·min)',
                 position: 'bottom',
@@ -1176,7 +967,6 @@ const ChartComponent = () => {
                 }
             },
             {
-                // 2. EIXO SUPERIOR (Volume)
                 type: 'log',
                 name: 'Acid Volume @ Optimum Rate, gal/ft',
                 position: 'top',
@@ -1230,8 +1020,6 @@ const ChartComponent = () => {
                 return tooltipText;
             }
         },
-        // Legenda nativa desligada -- substituida pelo quadro de controle
-        // (chips por vazao) acima do grafico, ver JSX.
         legend: { show: false },
         toolbox: { top: 10, right: 10, feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, myResetZoom: { show: true, title: 'Reset Zoom', icon: 'path://M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z', onclick: () => { const chart = (chartRefSkin.current as any); if (chart) { chart.getEchartsInstance().dispatchAction({ type: 'dataZoom', start: 0, end: 100 }); } } } } },
         grid: { top: 70, bottom: 60, left: 55, right: 40, containLabel: true },
@@ -1241,7 +1029,7 @@ const ChartComponent = () => {
         ],
         xAxis: {
             name: 'Acid Volume (gal/ft)',
-            type: 'log', // Escala logaritmica
+            type: 'log',
             nameLocation: 'middle',
             nameGap: 35,
             min: xResSkin.min ?? skinXAuto?.min,
@@ -1254,13 +1042,10 @@ const ChartComponent = () => {
             name: 'Skin',
             type: 'value',
             min: yResSkin.min,
-            max: yResSkin.max ?? 0, // CRÍTICO (sem limite manual): teto em 0
+            max: yResSkin.max ?? 0,
             nameLocation: 'middle',
             nameGap: 40
         },
-        // Cor explicita por indice (mesma paleta/indice do chip no quadro de
-        // controle, ver JSX) -- antes o auto-assign do ECharts nao tinha
-        // como o chip saber a cor de antemao.
         series: activeKeys.map((q) => ({
             name: `${q} bbl/min`,
             type: 'line',
@@ -1299,10 +1084,6 @@ const ChartComponent = () => {
                 transition={{ type: "spring", stiffness: 500, damping: 40 }}
                 className="seg-opt"
                 style={{
-                  // Ordem FIXA: nunca reordena ao clicar (sem `order` -- a
-                  // posicao e so a ordem natural de optionsList) -- so o
-                  // indicador (motion.span abaixo) desliza entre as posicoes
-                  // fixas via layoutId compartilhado.
                   position: 'relative',
                 }}
               >
@@ -1347,11 +1128,6 @@ const ChartComponent = () => {
             }}>Export Chart Data</button>
           </div>
         )}
-        {/* PVBt Optimum / X-Log / Y-Log: escalas radiais agora sao fixas por
-            grafico (Design/Skin/Simulation ja hardcoded; Analysis forcado
-            abaixo) e o "otimo" do Simulation Chart virou o chip "Optimum
-            path" (ver quadro de controle) -- os 3 toggles so fazem sentido
-            no Linear, onde continuam do jeito que estavam. */}
         {flowRegime === 'linear' && (
           <>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer' }}>
@@ -1376,10 +1152,6 @@ const ChartComponent = () => {
       </div>
 
       {(() => {
-        // Escala (log/linear) de cada eixo NO GRAFICO ATIVO agora -- so pra
-        // decidir a mensagem de validacao aqui embaixo (ex.: "Mín deve ser >
-        // 0 em log"). Espelha o `type` de cada xAxis/yAxis ja hardcoded ou
-        // condicional em cada efeito acima; nao decide nada sozinho.
         const isLog = visibleChart === 'design' ? { x: true, y: true }
           : visibleChart === 'skin' ? { x: true, y: false }
           : visibleChart === 'A' ? (flowRegime === 'radial' ? { x: false, y: true } : { x: xisLog, y: yisLog })

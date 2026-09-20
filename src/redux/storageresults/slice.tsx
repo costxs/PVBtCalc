@@ -1,30 +1,16 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-// 🔹 Criando a Action Assíncrona para buscar funcionários
-
 interface Curve {
     id: string;
     acid: string;
     rock: string;
-    // length/diameter sao do modelo LINEAR (core geometry) -- o radial nao
-    // tem esses campos (sua geometria e wellboreRadiusIn/payzoneThicknessFt
-    // abaixo), por isso opcionais em vez do antigo hardcode 0 no dispatch
-    // radial (SimuCard.tsx), que vazava pro export como "length: 0".
     length?: number,
     diameter?: number,
     porosity: number,
     concentration: number,
-    // Unidade depende de flowRegime: Celsius pro linear (setup.temperature),
-    // Kelvin pro radial (radialTemperatureK) -- export.tsx roula o rotulo
-    // certo a partir de flowRegime, nao deste campo sozinho.
     temperature: number,
-    // Geometria RADIAL (undefined no linear) -- Fase columnsConfig/export:
-    // sem isso o export nao tinha como mostrar wellbore/payzone (soline
-    // 0 herdado do linear).
     wellboreRadiusIn?: number,
     payzoneThicknessFt?: number,
-    // Alvo numerico desta curva (radial) -- targetLabel ja existia como
-    // string formatada para exibicao; este e o valor cru, para metadados.
     target?: number,
     pvbtPoints: number[] | null;
     flowratePoints: number[];
@@ -39,21 +25,8 @@ interface Curve {
     outputMode?: 'pvbt' | 'volume';
     acidVolumePoints?: number[];
     statusPoints?: string[];
-    // paralelo a flowratePoints/statusPoints (SoA). false = vazao fora da
-    // janela [q_opt/10, q_opt*10] validada pelo artigo.
     withinValidityRange?: boolean[];
-    // metadata da janela de validade. Chaves *_gal_ft_min (radial, Fase 8 --
-    // antes *_bbl_min) ou *_cm3_min (linear, Fase 6). null/undefined quando
-    // o backend nao achou q_opt
-    // interior. Fase 4 adicionou statusPoints/withinValidityRange mas nunca
-    // metadata; Fase 6 fecha essa lacuna (Chart.tsx/SimuCard.tsx leem daqui).
     metadata?: Record<string, number> | null;
-    // Flowing fraction (f) resolvido pelo backend para o rock_type desta
-    // curva (RadialAdjustedParameters.f, radial/slice.tsx) -- NAO vem de
-    // curve.metadata (esse e so a janela de validade, RadialCurveValidity,
-    // nunca teve chave `f`). undefined em curvas salvas antes desta chave
-    // existir (localStorage antigo) -- export deve tratar como "nao
-    // disponivel", nao como 0.
     flowingFraction?: number | null;
   }
 
@@ -61,7 +34,6 @@ interface CurvesState {
     curves: Curve[];
     ids: string[];
     }
-// 🔹 Criando o Slice do Redux
 const loadedCurves = JSON.parse(localStorage.getItem("curves") || "[]") as Curve[];
 const loadedIds = JSON.parse(localStorage.getItem("ids") || "[]") as string[];
 

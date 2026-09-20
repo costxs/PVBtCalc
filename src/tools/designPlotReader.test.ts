@@ -21,10 +21,6 @@ describe("designPlotReader", () => {
     expect(extractDesignPlotGrid([{ temperature_k: 297, optimum_rate_series: [], optimum_volume_series: [] }], 422)).toBeNull();
   });
 
-  // Interpolacao log-log entre dois pontos de uma lei de potencia EXATA
-  // (q = C*l^k, V = D*l^m) tem que reproduzir a lei de potencia sem erro
-  // (a menos de ponto flutuante) -- e exatamente o motivo de interpolar em
-  // log, nao em linear: reta em log-log = lei de potencia exata.
   it("interpolacao log-log e exata sobre uma lei de potencia", () => {
     const C = 0.05, k = 1.7, D = 0.6, m = 2.4;
     const lengths = [1, 2, 3, 4, 5];
@@ -75,19 +71,6 @@ describe("designPlotReader", () => {
     expect(isDesignPlotOutOfRange(readDesignPlot(grid, "length", 1))).toBe(true);
   });
 
-  // Fixture medida a partir do backend real (RadialCurveMaster.generate_design_plot):
-  // Indiana Limestone, HCl com inibidor, poco 6in diametro (r_w=3in), payzone 1ft,
-  // phi 0.15, Ca0 0.15, T=338.71K, grade inteira 1-5 ft (max_length_ft=5, steps=5).
-  // Trava regressao numerica do modelo fisico, nao so a formula de interpolacao
-  // (ja coberta acima).
-  //
-  // IMPORTANTE se algum dia regerar este fixture a partir do backend: o valor
-  // esperado (length~=4.2649, qOpt~=0.30557) depende do NUMERO DE PASSOS da
-  // grade, nao so da fisica -- uma grade de 20 pontos (o default de producao
-  // de generate_design_plot) interpola em nos diferentes de uma grade de 5
-  // pontos, e o resultado muda ~0.15% so por causa disso, sem nenhum erro no
-  // modelo. Fixar os DOIS parametros (max_length_ft E steps) ao regerar, ou
-  // o fixture fica indeterminístico.
   it("fixture do backend (338.71K, entrada 15 gal/ft)", () => {
     const grid: DesignPlotGridPoint[] = [
       { length: 1, qOpt: 0.054465215501531494, vOpt: 0.6161602789018865 },

@@ -29,7 +29,6 @@ describe("pointSeverity — regra de combinacao status + withinValidity (Fase 4)
   });
 
   it("erro nunca e rebaixado a atencao quando as duas condicoes valem", () => {
-    // prioridade: status !== ok vence sempre
     expect(pointSeverity("clipped", false).level).toBe("error");
   });
 

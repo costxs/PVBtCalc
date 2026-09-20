@@ -1,26 +1,16 @@
-/**
- * directoryExport.ts
- * ------------------------------------------------------------------
- * File System Access API (window.showDirectoryPicker) -- disponivel no
- * Chrome/Edge, ausente no Firefox/Safari. Guarda o FileSystemDirectoryHandle
- * em memoria (nao persiste entre reloads -- a API nao expõe isso sem IndexedDB,
- * fora de escopo aqui) e grava arquivos nele; se a permissao expirar ou o
- * navegador nao suportar, cai para o download normal (file-saver / saveAs).
- */
 import { saveAs } from "file-saver";
 
 export function hasDirectoryPickerSupport(): boolean {
   return typeof window !== "undefined" && "showDirectoryPicker" in window;
 }
 
-/** Abre o seletor de pastas do sistema. Retorna null se o usuario cancelar. */
 export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null> {
   if (!hasDirectoryPickerSupport()) return null;
   try {
     // @ts-expect-error -- showDirectoryPicker ainda nao esta no lib.dom.d.ts padrao do TS
     return await window.showDirectoryPicker({ mode: "readwrite" });
   } catch (err: any) {
-    if (err?.name === "AbortError") return null; // usuario cancelou o seletor
+    if (err?.name === "AbortError") return null;
     throw err;
   }
 }
@@ -33,7 +23,6 @@ async function verifyPermission(handle: FileSystemDirectoryHandle, mode: "read" 
   return false;
 }
 
-/** Garante nome unico dentro do diretorio: "foo.xlsx" -> "foo (2).xlsx" se ja existir. */
 async function uniqueNameInDirectory(dir: FileSystemDirectoryHandle, filename: string): Promise<string> {
   const dotIdx = filename.lastIndexOf(".");
   const stem = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
@@ -47,7 +36,7 @@ async function uniqueNameInDirectory(dir: FileSystemDirectoryHandle, filename: s
       candidate = `${stem} (${n})${ext}`;
       n++;
     } catch {
-      return candidate; // getFileHandle rejeitou -> nome livre (NotFoundError)
+      return candidate;
     }
   }
 }
@@ -57,12 +46,6 @@ export async function getOrCreateSubdirectory(dir: FileSystemDirectoryHandle, na
   return dir.getDirectoryHandle(sanitized, { create: true });
 }
 
-/**
- * Grava `blob` como `filename` dentro de `dir` (deduplicando o nome se ja
- * existir). Se `dir` for null, sem permissao ou sem suporte, cai pro
- * download padrao do navegador (saveAs). Devolve o nome final usado e se
- * caiu no fallback (pra UI poder avisar).
- */
 export async function saveBlob(
   dir: FileSystemDirectoryHandle | null,
   filename: string,
@@ -80,7 +63,6 @@ export async function saveBlob(
         return { savedAs: finalName, usedFallback: false };
       }
     } catch (err) {
-      // handle invalido/permissao negada em runtime -- cai pro download normal
       console.warn("[directoryExport] gravação na pasta escolhida falhou, usando download normal", err);
     }
   }

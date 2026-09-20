@@ -51,12 +51,6 @@ export default function ResultTab() {
   const visibleChart = useSelector((state: RootState) => state.ui.visibleChart);
   const { flowRegime, skinEvolutionData, designPlotData, payzoneThickness } = useSelector((state: RootState) => state.radial);
 
-  // Bug (2026-09): o dropdown "Saved run" listava TODOS os ids salvos, sem
-  // olhar o regime de origem de cada curva (Curve.flowRegime) -- ao trocar
-  // de aba (ou recarregar a pagina, que restaura curvas mas nao sempre
-  // sincroniza com a curva ativa) uma curva radial podia ficar selecionada
-  // com a UI em modo Linear e vice-versa. flowRegime ausente = curva salva
-  // antes do campo existir (legado), tratada como linear.
   const regimeIds = ids.filter((id) => {
     const c = (curves as any).find((cur: Curve) => cur.id === id);
     return matchesFlowRegime(c?.flowRegime, flowRegime);
@@ -81,11 +75,6 @@ export default function ResultTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flowRegime, ids]);
 
-  // Fase 8: qual aba de grafico esta ativa decide a fonte de dados/colunas
-  // da tabela -- design/skin so existem quando flowRegime === 'radial'
-  // (os radios daquelas abas nem aparecem no linear, Chart.tsx:800), a
-  // guarda aqui e so defensiva contra um visibleChart parado de uma troca
-  // de regime anterior.
   const isSkinTab = flowRegime === 'radial' && visibleChart === 'skin';
   const isDesignTab = flowRegime === 'radial' && visibleChart === 'design';
   const isCurveTab = !isSkinTab && !isDesignTab;
@@ -98,10 +87,6 @@ export default function ResultTab() {
   const acid = (curve as any)?.acid || '';
   const rock = (curve as any)?.rock || '';
 
-  // Painel de resumo (Min PVBt/volume) so faz sentido para a aba de curva
-  // salva (Simulation/Analysis) -- Skin/Design nao tem "otimo" definido
-  // pelo pedido desta etapa. optimumField vem de buildSimulationTable (uma
-  // so fonte para essa decisao -- nao recalcular isVolumeMode aqui).
   const optimumField = simTable?.optimumField ?? null;
   const optimumValues = simTable && optimumField ? simTable.rows.map((r) => r[optimumField]).filter((v) => v != null) : [];
   const minOptimumValue = optimumValues.length > 0 ? Math.min(...optimumValues) : null;

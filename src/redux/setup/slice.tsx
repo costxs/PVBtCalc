@@ -1,7 +1,6 @@
 import {createSlice } from "@reduxjs/toolkit";
   
 
-// 🔹 Criando o Slice do Redux
 const setupSlice = createSlice({
   name: "setup",
   initialState: {

@@ -9,6 +9,7 @@ import {
 } from "../tools/exportSimulations";
 import { exportRadialWorkbookServer, exportRadialFiguresServer, type FigureSize } from "../tools/exportRadialServer";
 import { exportCurveAsVerticalTable } from "../tools/export";
+import { exportLinearWorkbookServer } from "../tools/exportLinearServer";
 import { hasDirectoryPickerSupport, pickDirectory, getOrCreateSubdirectory } from "../tools/directoryExport";
 import {
   listSnapshotSummaries, getSnapshot, deleteSnapshot, deleteAllSnapshots, renameSnapshot,
@@ -16,24 +17,6 @@ import {
 } from "../tools/simulationStoreIO";
 import type { SimulationSnapshotSummary } from "../tools/simulationSnapshot";
 import { openSnapshotIntoRedux } from "../tools/simulationRestore";
-
-/**
- * ExportTab.tsx
- * ------------------------------------------------------------------
- * Aba dedicada de export (sidebar "Export"). Antes, Chart.tsx tinha 4
- * controles de export competindo com os de visualizacao do grafico
- * (Exportar tudo / figuras PNG / seletor 1-2 colunas, alem do "Export Chart
- * Data" que ficou). Esta aba absorve os 3 que saíram + adiciona escolha de
- * MULTIPLAS simulacoes e pasta de destino (File System Access API).
- *
- * Design/Skin (design_series/skin_series) so existem em memoria para a
- * rodada radial ATIVA (radialState nao guarda um mapa por simulacao) --
- * isActiveRadialRun decide isso; simulacoes antigas ainda exportam a aba
- * Simulation completa (reconstruida de resultCurves, ver exportSimulations.ts),
- * so ficam sem Design/Skin. Regime linear nao tem geracao de figuras no
- * backend -- so o formato "Somente tabelas" se aplica (reusa
- * exportCurveAsVerticalTable, ja existente).
- */
 
 type FormatKey = "workbook" | "figures" | "tablesOnly";
 
@@ -77,7 +60,6 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
   const isPt = language === "pt";
   const FORMAT_LABELS_LANG = FORMAT_LABELS[language];
 
-  // --- Simulações salvas (cache persistente, IndexedDB) -------------------
   const [savedSims, setSavedSims] = useState<SimulationSnapshotSummary[]>([]);
   const [savedSimsLoading, setSavedSimsLoading] = useState(true);
   const [evictionNotice, setEvictionNotice] = useState<string | null>(null);
@@ -204,7 +186,15 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
 
     setExporting(true);
     setResults([]);
-    const total = selGroups.length * formats.length;
+    const linearGroups = selGroups.filter((g) => g.flowRegime === "linear");
+    const radialGroups = selGroups.filter((g) => g.flowRegime !== "linear");
+    const linearWithData = linearGroups.filter((g) => g.hasData);
+    const linearNoData = linearGroups.filter((g) => !g.hasData);
+    const linearUnits =
+      (formats.includes("workbook") && linearWithData.length > 0 ? 1 : 0) +
+      linearWithData.length * formats.filter((f) => f !== "workbook").length +
+      linearNoData.length * formats.length;
+    const total = radialGroups.length * formats.length + linearUnits;
     let done = 0;
     setProgress({ done: 0, total });
 
@@ -222,7 +212,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
     const savedToFolderDetail = (savedAs: string) => isPt ? `Salvo na pasta (${savedAs})` : `Saved to folder (${savedAs})`;
 
     const rows: ExportResultRow[] = [];
-    for (const g of selGroups) {
+    for (const g of radialGroups) {
       if (!g.hasData) {
         const detail = isPt ? "Simulação sem resultados calculados" : "Simulation with no calculated results";
         for (const f of formats) rows.push({ simId: g.simId, format: f, status: "error", detail });
@@ -233,29 +223,56 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
 
       for (const f of formats) {
         try {
-          if (g.flowRegime === "linear") {
-            if (f !== "tablesOnly") {
-              rows.push({ simId: g.simId, format: f, status: "skipped", detail: isPt ? "Não disponível para regime linear (sem figuras no servidor)" : "Not available for linear regime (no figures on the server)" });
-            } else {
-              g.curves.forEach((c) => exportCurveAsVerticalTable(c));
-              const n = g.curves.length;
-              rows.push({ simId: g.simId, format: f, status: "ok", detail: isPt ? `Baixado (${n} arquivo${n > 1 ? "s" : ""})` : `Downloaded (${n} file${n > 1 ? "s" : ""})` });
-            }
+          const payload = buildGroupExportPayload(g, radialState);
+          if (f === "workbook") {
+            const r = await exportRadialWorkbookServer(payload, userToken || "", { includeImages: true, directoryHandle: targetDir });
+            rows.push({ simId: g.simId, format: f, status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });
+          } else if (f === "tablesOnly") {
+            const r = await exportRadialWorkbookServer(payload, userToken || "", { includeImages: false, directoryHandle: targetDir });
+            rows.push({ simId: g.simId, format: f, status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });
           } else {
-            const payload = buildGroupExportPayload(g, radialState);
-            if (f === "workbook") {
-              const r = await exportRadialWorkbookServer(payload, userToken || "", { includeImages: true, directoryHandle: targetDir });
-              rows.push({ simId: g.simId, format: f, status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });
-            } else if (f === "tablesOnly") {
-              const r = await exportRadialWorkbookServer(payload, userToken || "", { includeImages: false, directoryHandle: targetDir });
-              rows.push({ simId: g.simId, format: f, status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });
-            } else {
-              const r = await exportRadialFiguresServer(payload, figureSize, userToken || "", { directoryHandle: targetDir });
-              rows.push({ simId: g.simId, format: f, status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });
-            }
+            const r = await exportRadialFiguresServer(payload, figureSize, userToken || "", { directoryHandle: targetDir });
+            rows.push({ simId: g.simId, format: f, status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });
           }
         } catch (err) {
           rows.push({ simId: g.simId, format: f, status: "error", detail: err instanceof Error ? err.message : String(err) });
+        }
+        done++;
+        setProgress({ done, total });
+      }
+    }
+
+    for (const g of linearNoData) {
+      const detail = isPt ? "Simulação sem resultados calculados" : "Simulation with no calculated results";
+      for (const f of formats) { rows.push({ simId: g.simId, format: f, status: "error", detail }); done++; }
+      setProgress({ done, total });
+    }
+
+    if (formats.includes("workbook") && linearWithData.length > 0) {
+      const label = linearWithData.map((g) => g.simId).join(", ");
+      try {
+        const r = await exportLinearWorkbookServer(linearWithData.flatMap((g) => g.curves), userToken || "", { includeImages: true, directoryHandle: targetDir });
+        rows.push({ simId: label, format: "workbook", status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });
+      } catch (err) {
+        rows.push({ simId: label, format: "workbook", status: "error", detail: err instanceof Error ? err.message : String(err) });
+      }
+      done++;
+      setProgress({ done, total });
+    }
+
+    for (const g of linearWithData) {
+      for (const f of formats) {
+        if (f === "workbook") continue;
+        if (f === "tablesOnly") {
+          try {
+            g.curves.forEach((c) => exportCurveAsVerticalTable(c));
+            const n = g.curves.length;
+            rows.push({ simId: g.simId, format: f, status: "ok", detail: isPt ? `Baixado (${n} arquivo${n > 1 ? "s" : ""})` : `Downloaded (${n} file${n > 1 ? "s" : ""})` });
+          } catch (err) {
+            rows.push({ simId: g.simId, format: f, status: "error", detail: err instanceof Error ? err.message : String(err) });
+          }
+        } else {
+          rows.push({ simId: g.simId, format: f, status: "skipped", detail: isPt ? "Pacote de figuras não disponível para regime linear (use a Planilha completa, que inclui a figura)" : "Figure package not available for linear regime (use the Full workbook, which includes the figure)" });
         }
         done++;
         setProgress({ done, total });
@@ -276,9 +293,6 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
         <span style={{ flex: 1, height: "1px", background: "var(--color-divider)" }}></span>
       </div>
 
-      {/* Simulações salvas (cache persistente) -- sobrevive a reload/fechar
-          o navegador, até o usuário excluir. Distinta da lista "desta
-          sessão" abaixo, que reflete só o que está na memória agora. */}
       <div style={{ marginBottom: "30px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
           <h3 style={{ margin: 0, fontSize: "15px", letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--color-accent-900)" }}>
@@ -370,8 +384,6 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
         </div>
       ) : (
         <>
-          {/* Lista de simulações desta sessão (memória) -- exportar direto,
-              sem precisar abrir de volta do cache persistente acima. */}
           <div style={{ marginBottom: "22px" }}>
             <h3 style={{ margin: "0 0 8px", fontSize: "15px", letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--color-accent-900)" }}>
               {isPt ? "Exportar (desta sessão)" : "Export (this session)"}
@@ -431,13 +443,12 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
             </div>
           </div>
 
-          {/* Blocos de opções */}
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "22px", padding: "16px", border: "1px solid var(--color-divider)", borderRadius: "8px" }}>
             <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-accent-900)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{isPt ? "Formatos" : "Formats"}</div>
 
             <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", cursor: "pointer" }}>
               <input type="checkbox" checked={fmtWorkbook} onChange={(e) => setFmtWorkbook(e.target.checked)} />
-              {FORMAT_LABELS_LANG.workbook} — {isPt ? "abas Inputs, Design, Sim, Skin, Resumo gráficos, com figuras embutidas" : "Inputs, Design, Sim, Skin, Chart Summary sheets, with embedded figures"}
+              {FORMAT_LABELS_LANG.workbook} — {isPt ? "radial: abas Inputs, Design, Sim, Skin, Resumo gráficos; linear: Inputs, Figures, Sim, Experimental — com figuras embutidas" : "radial: Inputs, Design, Sim, Skin, Chart Summary sheets; linear: Inputs, Figures, Sim, Experimental — with embedded figures"}
             </label>
 
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -464,14 +475,13 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
 
             <div style={{ fontSize: "11.5px", color: "var(--color-neutral-600)", marginTop: "2px" }}>
               {isPt
-                ? <>Regime linear: apenas "{FORMAT_LABELS_LANG.tablesOnly}" está disponível (sem figuras no servidor).
+                ? <>Regime linear: "{FORMAT_LABELS_LANG.workbook}" junta todas as curvas lineares selecionadas (modelo + experimentais) em um só arquivo, com figura e ponto ótimo; "{FORMAT_LABELS_LANG.tablesOnly}" gera um arquivo por curva.
                   Simulações radiais que não são a rodada ativa exportam sem as abas Design/Skin (dados só ficam em memória durante a rodada em curso).</>
-                : <>Linear regime: only "{FORMAT_LABELS_LANG.tablesOnly}" is available (no figures on the server).
+                : <>Linear regime: "{FORMAT_LABELS_LANG.workbook}" combines all selected linear curves (model + experimental) in one file, with figure and optimum point; "{FORMAT_LABELS_LANG.tablesOnly}" writes one file per curve.
                   Radial simulations other than the active run export without the Design/Skin sheets (data only stays in memory during the current run).</>}
             </div>
           </div>
 
-          {/* Pasta de destino */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "22px", flexWrap: "wrap" }}>
             {dirSupported ? (
               <>
@@ -489,7 +499,6 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
             )}
           </div>
 
-          {/* Exportar */}
           <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
             <button className="btn btn-green" style={{ fontSize: "13px", padding: "9px 20px", borderRadius: "9px" }} disabled={!canExport} onClick={handleExport}>
               {exporting ? (isPt ? "Exportando…" : "Exporting…") : (isPt ? "Exportar" : "Export")}
@@ -504,7 +513,6 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
             )}
           </div>
 
-          {/* Resultado por item */}
           {results.length > 0 && (
             <div style={{ border: "1px solid var(--color-divider)", borderRadius: "8px", overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>

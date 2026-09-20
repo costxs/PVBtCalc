@@ -21,13 +21,6 @@ function App() {
           <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
 
           {currentTab === 'runner' ? (
-            // Radial reusa EXATAMENTE a mesma estrutura de colunas do Linear
-            // (mesmas classes/grid/gap/larguras) -- antes tinha um branch
-            // proprio "flex flex-col" sem nenhuma classe lg:grid, entao
-            // Radial empilhava em qualquer largura de tela; ResultTab tambem
-            // morava fora da coluna do grafico. So o conteudo interno de cada
-            // coluna muda por flowRegime (SimuSetupCard/ChartComponent ja
-            // se adaptam sozinhos).
             <main className="flex flex-col gap-6 p-4 md:p-6 lg:p-8 content-start bg-[var(--color-bg)] lg:grid lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '26px', minWidth: 0 }}>
                 <SimuSetupCard />

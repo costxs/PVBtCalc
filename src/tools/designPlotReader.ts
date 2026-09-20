@@ -1,22 +1,10 @@
-/**
- * designPlotReader.ts -- leitura guiada do Design Plot (artigo, Secao 6.4):
- * dado UM dos tres eixos (V_opt, q_opt ou comprimento), interpola os OUTROS
- * DOIS na grade ja calculada pelo backend (generate_design_plot). Puro
- * (sem React/redux) de proposito -- testavel direto, sem DOM.
- *
- * Interpolacao em espaco LOG, nao linear: as curvas do artigo sao leis de
- * potencia (retas em log-log) -- interpolar reta entre pontos vizinhos e
- * quase exato; interpolar linear ignora a curvatura da lei de potencia.
- * Medido (338.71 K, entrada 15 gal/ft, grade 1-5 ft): log-log erra 0.19%
- * contra o valor continuo, linear erra 1.10%.
- */
 
 export type DesignPlotReadMode = "volume" | "rate" | "length";
 
 export interface DesignPlotGridPoint {
-  length: number; // ft
-  qOpt: number; // gal/(ft.min)
-  vOpt: number; // gal/ft
+  length: number;
+  qOpt: number;
+  vOpt: number;
 }
 
 export interface DesignPlotReading {
@@ -35,9 +23,6 @@ export function isDesignPlotOutOfRange(v: DesignPlotReading | DesignPlotOutOfRan
   return (v as DesignPlotOutOfRange).outOfRange === true;
 }
 
-// rate/volume series sao arrays paralelos pelo MESMO indice (mesmo l_ft por
-// ponto, ver PVBTradialFunc.generate_design_plot e columnsConfig.buildDesignTable)
-// -- so zip por indice aqui, sem recalculo.
 export function extractDesignPlotGrid(
   series: { temperature_k: number; optimum_rate_series: number[][]; optimum_volume_series: number[][] }[],
   temperatureK: number
@@ -58,9 +43,6 @@ function logInterp(a: number, b: number, t: number): number {
   return Math.exp(Math.log(a) + t * Math.log(b / a));
 }
 
-// Acha i tal que target caia entre xs[i] e xs[i+1] -- funciona com xs
-// crescente OU decrescente (nao assume direcao, so monotonicidade local).
-// null => fora da faixa coberta pela grade (NAO extrapolar, ver motivacao).
 function findBracket(xs: number[], target: number): number | null {
   for (let i = 0; i < xs.length - 1; i++) {
     const a = xs[i];

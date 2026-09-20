@@ -4,24 +4,7 @@ import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
 import { Curve } from "../redux/storageresults/slice";
 import { buildSimulationTable, buildDesignTable, buildSkinTable } from "../components/columnsConfig";
 import { readValidity } from "./validityWindow";
-
-/**
- * export.tsx
- * ------------------------------------------------------------------
- * Reusa buildSimulationTable/buildDesignTable/buildSkinTable (columnsConfig.ts)
- * -- a MESMA fonte que as tabelas do painel 05 usam -- em vez de serializar o
- * objeto Redux cru. Isso e o que mantem tabela e export sincronizados por
- * construcao: key le o valor, label+unit vira o cabecalho, a ordem do
- * array vira a ordem das colunas.
- *
- * Estilos e Cores na Planilha Excel:
- * - Cabeçalhos de Seção ("INPUT PARAMETERS"):
- *   Fundo Azul Escuro (1F4E78), fonte branca em negrito, centralizado.
- * - Cabeçalhos de Coluna:
- *   Fundo Azul Médio (2F75B5), fonte branca em negrito, centralizado.
- * - Linha destacada (alvo / mínimo / skin final):
- *   fundo amarelo claro (FFF2CC) + negrito. Linhas comuns NAO tem fill.
- */
+import { analyzeLinearOptimum, isExperimentalCurve, linearNote, linearSummaryRows } from "./linearExport";
 
 function buildMetadataRows(curve: Curve): (string | number)[][] {
   const isRadial = curve.flowRegime === 'radial';
@@ -34,10 +17,6 @@ function buildMetadataRows(curve: Curve): (string | number)[][] {
     ['Porosity', curve.porosity],
   ];
 
-  // Correção e clareza da temperatura:
-  // Se for < 100, sabemos que foi informada em Celsius (ex: 24.05).
-  // Se for >= 100, é Kelvin (ex: 338.71).
-  // Exporta explicitamente ambas as grandezas para evitar qualquer ambiguidade.
   const rawTemp = curve.temperature;
   if (rawTemp != null) {
     let tempC: number;
@@ -53,7 +32,6 @@ function buildMetadataRows(curve: Curve): (string | number)[][] {
     rows.push(['Temperature (K)', tempK]);
   }
 
-  // Flowrate Sweep (Min e Max do sweep realizado)
   const qPoints = (curve.flowratePoints || []).filter((v) => typeof v === 'number' && !isNaN(v));
   if (qPoints.length > 0) {
     const qMin = Math.min(...qPoints);
@@ -62,7 +40,6 @@ function buildMetadataRows(curve: Curve): (string | number)[][] {
     rows.push([`Flowrate Sweep Min (${qUnit})`, qMin]);
     rows.push([`Flowrate Sweep Max (${qUnit})`, qMax]);
 
-    // Para modelo radial, adiciona também a conversão em bbl/min caso haja payzoneThicknessFt
     if (isRadial && curve.payzoneThicknessFt) {
       const qMinBbl = Number(((qMin * curve.payzoneThicknessFt) / 42).toFixed(4));
       const qMaxBbl = Number(((qMax * curve.payzoneThicknessFt) / 42).toFixed(4));
@@ -90,22 +67,30 @@ export const buildVerticalTableSheet = (curve: Curve) => {
   const metadataRows = buildMetadataRows(curve);
   const headerRow = columns.map((c) => c.label + (c.unit ? ` (${c.unit})` : ""));
 
-  // Valores numéricos mantidos em formato nativo para Excel
-  const dataRows = rows.map((row) =>
-    columns.map((c) => {
+  const hasOptimum = curve.flowRegime !== 'radial' && !isExperimentalCurve(curve);
+  const optInfo = hasOptimum ? analyzeLinearOptimum(curve) : null;
+  const optRows: (string | number)[][] = optInfo ? linearSummaryRows(optInfo) : [];
+  if (optInfo) headerRow.push('Nota');
+
+  const dataRows = rows.map((row, i) => {
+    const cells: (string | number)[] = columns.map((c) => {
       const val = row[c.key];
       return val ?? "";
-    })
-  );
+    });
+    if (optInfo) cells.push(linearNote(optInfo, i));
+    return cells;
+  });
+  const totalCols = columns.length + (optInfo ? 1 : 0);
 
-  // Montagem estruturada do layout da planilha
   const inputSectionHeader = ["INPUT PARAMETERS"];
+  const optSectionHeader = ["OPTIMUM SUMMARY"];
   const resultsSectionHeader = ["SIMULATION RESULTS"];
 
   const sheetAoA: (string | number)[][] = [
     inputSectionHeader,
     ...metadataRows,
-    [], // linha em branco para espaçamento
+    [],
+    ...(optInfo ? [optSectionHeader, ...optRows, []] : []),
     resultsSectionHeader,
     headerRow,
     ...dataRows,
@@ -113,26 +98,23 @@ export const buildVerticalTableSheet = (curve: Curve) => {
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetAoA);
 
-  // Configuração de mesclagem para cabeçalhos de seção
   const inputHeaderRowIndex = 0;
-  const simHeaderRowIndex = metadataRows.length + 2;
+  const optHeaderRowIndex = optInfo ? metadataRows.length + 2 : -1;
+  const simHeaderRowIndex = optInfo ? optHeaderRowIndex + optRows.length + 2 : metadataRows.length + 2;
   const colHeadersRowIndex = simHeaderRowIndex + 1;
-  const numDataCols = Math.max(columns.length, 2);
+  const numDataCols = Math.max(totalCols, 2);
 
   worksheet['!merges'] = [
-    // INPUT PARAMETERS mesclado nas colunas A e B
     { s: { r: inputHeaderRowIndex, c: 0 }, e: { r: inputHeaderRowIndex, c: 1 } },
-    // SIMULATION RESULTS mesclado em todas as colunas da tabela
+    ...(optInfo ? [{ s: { r: optHeaderRowIndex, c: 0 }, e: { r: optHeaderRowIndex, c: 1 } }] : []),
     { s: { r: simHeaderRowIndex, c: 0 }, e: { r: simHeaderRowIndex, c: numDataCols - 1 } },
   ];
 
-  // Auto-ajuste de largura de cada coluna com base no conteúdo
   const colWidths: { wch: number }[] = [];
   for (let colIdx = 0; colIdx < numDataCols; colIdx++) {
     let maxLen = 12;
-    // Ignorar linhas de cabeçalho mescladas no cálculo de largura para não estourar a coluna A
     sheetAoA.forEach((r, rowIdx) => {
-      if (rowIdx === inputHeaderRowIndex || rowIdx === simHeaderRowIndex) return;
+      if (rowIdx === inputHeaderRowIndex || rowIdx === simHeaderRowIndex || rowIdx === optHeaderRowIndex) return;
       const val = r[colIdx];
       if (val != null) {
         const str = String(val);
@@ -145,9 +127,6 @@ export const buildVerticalTableSheet = (curve: Curve) => {
   }
   worksheet['!cols'] = colWidths;
 
-  // ==========================================
-  // ESTILIZAÇÃO E CORES (AZUL / WHITE / BORDERS)
-  // ==========================================
   const borderThin = {
     top: { style: "thin", color: { rgb: "B0C4DE" } },
     bottom: { style: "thin", color: { rgb: "B0C4DE" } },
@@ -155,14 +134,12 @@ export const buildVerticalTableSheet = (curve: Curve) => {
     right: { style: "thin", color: { rgb: "B0C4DE" } },
   };
 
-  // 1. Estilo do Cabeçalho de Seção: Azul Escuro (#1F4E78)
   const sectionHeaderStyle = {
     fill: { fgColor: { rgb: "1F4E78" } },
     font: { name: "Calibri", sz: 12, bold: true, color: { rgb: "FFFFFF" } },
     alignment: { horizontal: "center", vertical: "center" },
   };
 
-  // 2. Estilo dos Cabeçalhos das Colunas da Tabela: Azul Médio (#2F75B5)
   const colHeaderStyle = {
     fill: { fgColor: { rgb: "2F75B5" } },
     font: { name: "Calibri", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
@@ -170,14 +147,12 @@ export const buildVerticalTableSheet = (curve: Curve) => {
     border: borderThin,
   };
 
-  // 3. Estilo dos Labels dos Parâmetros de Entrada
   const inputLabelStyle = {
     font: { name: "Calibri", sz: 11, bold: true, color: { rgb: "1F2937" } },
     border: borderThin,
     alignment: { horizontal: "left", vertical: "center" },
   };
 
-  // 4. Estilo dos Valores dos Parâmetros de Entrada: Azul Claro (#D9E1F2)
   const inputValueStyle = {
     fill: { fgColor: { rgb: "D9E1F2" } },
     font: { name: "Calibri", sz: 11, color: { rgb: "0F172A" } },
@@ -185,14 +160,12 @@ export const buildVerticalTableSheet = (curve: Curve) => {
     alignment: { horizontal: "center", vertical: "center" },
   };
 
-  // Aplicar estilo no banner "INPUT PARAMETERS"
   for (let c = 0; c <= 1; c++) {
     const ref = XLSX.utils.encode_cell({ r: inputHeaderRowIndex, c });
     if (!worksheet[ref]) worksheet[ref] = { t: "s", v: "" };
     worksheet[ref].s = sectionHeaderStyle;
   }
 
-  // Aplicar estilo nos parâmetros de entrada
   for (let r = 0; r < metadataRows.length; r++) {
     const rowIdx = inputHeaderRowIndex + 1 + r;
     const labelRef = XLSX.utils.encode_cell({ r: rowIdx, c: 0 });
@@ -201,29 +174,43 @@ export const buildVerticalTableSheet = (curve: Curve) => {
     if (worksheet[valRef]) worksheet[valRef].s = inputValueStyle;
   }
 
-  // Aplicar estilo no banner "SIMULATION RESULTS" (Azul Escuro em todas as colunas mescladas)
+  if (optInfo) {
+    for (let c = 0; c <= 1; c++) {
+      const ref = XLSX.utils.encode_cell({ r: optHeaderRowIndex, c });
+      if (!worksheet[ref]) worksheet[ref] = { t: "s", v: "" };
+      worksheet[ref].s = sectionHeaderStyle;
+    }
+    for (let r = 0; r < optRows.length; r++) {
+      const labelRef = XLSX.utils.encode_cell({ r: optHeaderRowIndex + 1 + r, c: 0 });
+      const valRef = XLSX.utils.encode_cell({ r: optHeaderRowIndex + 1 + r, c: 1 });
+      if (worksheet[labelRef]) worksheet[labelRef].s = inputLabelStyle;
+      if (worksheet[valRef]) {
+        worksheet[valRef].s = inputValueStyle;
+        if (worksheet[valRef].t === 'n') worksheet[valRef].z = '0.0000';
+      }
+    }
+  }
+
   for (let c = 0; c < numDataCols; c++) {
     const ref = XLSX.utils.encode_cell({ r: simHeaderRowIndex, c });
     if (!worksheet[ref]) worksheet[ref] = { t: "s", v: "" };
     worksheet[ref].s = sectionHeaderStyle;
   }
 
-  // Aplicar estilo nas células de cabeçalho de coluna (Azul Médio)
-  for (let c = 0; c < columns.length; c++) {
+  for (let c = 0; c < totalCols; c++) {
     const ref = XLSX.utils.encode_cell({ r: colHeadersRowIndex, c });
     if (worksheet[ref]) {
       worksheet[ref].s = colHeaderStyle;
     }
   }
 
-  // 5. Estilização e Formatação Numérica nas Células de Dados
   const dataStartRowIndex = colHeadersRowIndex + 1;
   for (let r = 0; r < dataRows.length; r++) {
     const isEven = r % 2 === 0;
     const isRowHighlighted = isHighlighted ? isHighlighted(rows[r], r) : false;
     const rowFillColor = isRowHighlighted ? "FFF2CC" : (isEven ? "FFFFFF" : "F4F7FB");
 
-    for (let c = 0; c < columns.length; c++) {
+    for (let c = 0; c < totalCols; c++) {
       const cellRef = XLSX.utils.encode_cell({ r: dataStartRowIndex + r, c });
       const cell = worksheet[cellRef];
       if (cell) {
@@ -246,7 +233,7 @@ export const buildVerticalTableSheet = (curve: Curve) => {
             bold: isRowHighlighted,
             color: { rgb: isRowHighlighted ? "000000" : "1F2937" },
           },
-          alignment: { horizontal: columns[c].key === 'target' ? "center" : "right", vertical: "center" },
+          alignment: { horizontal: columns[c]?.key === 'target' ? "center" : c >= columns.length ? "left" : "right", vertical: "center" },
           border: borderThin,
         };
       }
@@ -268,8 +255,6 @@ export const exportCurveAsVerticalTable = (curve: Curve) => {
 };
 
 export default exportCurveAsVerticalTable;
-
-// --- NOVAS FUNÇÕES PARA O MODO RADIAL ---
 
 const BORDER_THIN = {
   top: { style: "thin", color: { rgb: "B0C4DE" } },
@@ -304,9 +289,6 @@ const INPUT_VALUE_STYLE = {
   alignment: { horizontal: "center", vertical: "center" },
 };
 
-// Item 5: linhas comuns SEM fill -- so cabecalho e linha destacada tem cor de
-// fundo. `highlighted` e a UNICA condicao que injeta fill/bold nas celulas de
-// dados (mantém o antigo zebra-striping fora, por pedido explicito).
 function dataCellStyle(highlighted: boolean) {
   const base: Record<string, any> = {
     font: { name: "Calibri", sz: 10.5, color: { rgb: highlighted ? "000000" : "1F2937" }, bold: highlighted },
@@ -317,10 +299,6 @@ function dataCellStyle(highlighted: boolean) {
   return base;
 }
 
-// Item 5: formato por COLUNA (nao por celula) -- decide olhando todos os
-// valores nao-nulos da coluna: se algum estoura [0.001, 1e5) vira notacao
-// cientifica pra coluna inteira (V_A/tbt grandes, velocidades pequenas nunca
-// ficam ilegiveis arredondados a 4 casas fixas); senao fica em 0.0000.
 function pickNumberFormat(values: number[]): string {
   const nonZero = values.filter((v) => typeof v === 'number' && Number.isFinite(v) && v !== 0);
   if (nonZero.length === 0) return '0.0000';
@@ -331,9 +309,6 @@ function pickNumberFormat(values: number[]): string {
   return needsSci ? '0.000E+00' : '0.0000';
 }
 
-// Item 5: largura ajustada ao cabecalho (linha 0 sempre entra no scan) --
-// tambem cobre a coluna "Nota", cujo texto costuma ser mais longo que
-// qualquer header.
 function autoWidths(aoa: (string | number | null)[][]): { wch: number }[] {
   const ncols = aoa.reduce((max, r) => Math.max(max, r.length), 0);
   const widths: { wch: number }[] = [];
@@ -348,21 +323,12 @@ function autoWidths(aoa: (string | number | null)[][]): { wch: number }[] {
   return widths;
 }
 
-// Campos numericos da aba Inputs podem chegar como STRING vinda direto do
-// Redux: <input type="number"> e <input type="range"> entregam e.target.value
-// (string) no onChange, e alguns reducers (setup/slice.tsx setParameter, ex.:
-// minimum_flowrate/flowrate/step_numbers) gravam esse valor sem Number() --
-// aoa_to_sheet tipa a celula pelo typeof do JS, entao uma string aqui vira
-// celula de TEXTO no Excel ("0.1" alinhado a esquerda, sem == numerico) em
-// vez de numero. Forca Number() na hora de montar a linha, sem depender de
-// consertar cada reducer/input a montante.
 function asNumberCell(v: unknown): number | string {
   if (v == null) return '';
   const n = Number(v);
   return Number.isFinite(n) ? n : String(v);
 }
 
-// Nomes de aba nao podem ter : \ / ? * [ ] nem passar de 31 caracteres.
 function sanitizeSheetName(name: string): string {
   return name.replace(/[:\\/?*[\]]/g, '').slice(0, 31);
 }
@@ -379,13 +345,6 @@ function dedupeSheetName(name: string, used: Set<string>): string {
   return candidate;
 }
 
-/**
- * Monta uma aba "simples" (1 linha de cabecalho + linhas de dados, sem
- * banner/merge) com formatacao por coluna e destaque de linha -- usado por
- * Simulation, Design Plot e Skin (cada uma so difere na montagem do AoA).
- * numericColRange = [colInicial, colFinal] (inclusive) das colunas que
- * recebem formato numerico; colunas fora do range (ex.: "Nota") ficam texto.
- */
 function finalizeSheet(
   sheetAoA: (string | number | null)[][],
   highlightRows: Set<number>,
@@ -423,12 +382,6 @@ function finalizeSheet(
   return ws;
 }
 
-// Item 5: congela a linha de cabecalho em TODAS as abas do arquivo. A versao
-// instalada de xlsx-js-style (1.2.0) nao escreve panes/freeze no writer
-// (confirmado inspecionando o XML gerado) -- entao pos-processamos o zip
-// (xlsx e um .zip OOXML) injetando <pane .../> em cada xl/worksheets/sheetN.xml
-// antes de salvar. Puramente cosmetico: se o patch falhar por qualquer razao,
-// devolve o buffer original sem congelar em vez de quebrar o export.
 function applyHeaderFreeze(buf: ArrayBuffer | Uint8Array): Uint8Array {
   try {
     const input = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
@@ -460,10 +413,6 @@ function saveWorkbook(wb: XLSX.WorkBook, filename: string) {
 
 const SIM_HEADER = ["q0 [gal/(ft.min)]", "V_A [gal/ft]", "iv [m/s]", "wv [m/s]", "dv [m/s]", "1/Da", "tbt [s]", "Nota"];
 
-// Item 1: uma aba por alvo, colunas na ordem do export antigo por curva.
-// Destaca a linha do menor V_A; se ela for a primeira/ultima (borda da faixa
-// simulada), a nota cita o q_opt que ja vem pronto em curve.metadata (Fase 6) --
-// nunca recalculado aqui.
 function createSimulationSheet(curve: Curve) {
   const { rows } = buildSimulationTable(curve);
 
@@ -521,8 +470,6 @@ export const exportRadialSimulationTable = (curve: Curve) => {
   saveWorkbook(wb, `PVBtCalc_Radial_${curve.id}.xlsx`);
 };
 
-// Item 1 (botao "Export Chart Data"): TODAS as abas "Sim ... ft" num unico
-// arquivo -- antes cada curva baixava um arquivo separado.
 export const exportRadialSimulationAll = (curves: Curve[], simulationId?: string) => {
   const wb = XLSX.utils.book_new();
   appendSimulationSheets(wb, curves);
@@ -532,16 +479,11 @@ export const exportRadialSimulationAll = (curves: Curve[], simulationId?: string
 
 const DESIGN_HEADER = ["L [ft]", "q_opt [gal/(ft.min)]", "V_opt [gal/ft]", "tbt [min]", "Temperatura [K]", "Nota"];
 
-// "5" para alvo inteiro, "7.50" trimado para "7.5" -- os alvos configurados
-// pelo usuario (radial.targetsLambda) sao tipicamente inteiros; nunca forcar
-// 2 casas decimais aqui (ficaria "Alvo 5.00 ft", que o pedido nao quer).
 function fmtTarget(t: number): string {
   if (Number.isInteger(t)) return String(t);
   return t.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
-// "5 e 10", "10, 15 e 20" -- lista em portugues (virgula entre itens, "e"
-// antes do ultimo) para a nota de multiplos alvos nao atingidos.
 function joinPt(items: string[]): string {
   if (items.length === 0) return '';
   if (items.length === 1) return items[0];
@@ -549,14 +491,6 @@ function joinPt(items: string[]): string {
   return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
 }
 
-// Item 3 (revisado): uma aba por temperatura, com TODOS os alvos configurados
-// (radial.targetsLambda -- nao so o primeiro) destacados nessa mesma aba.
-// Design Plot varre L continuamente (buildDesignTable ja devolve `temperatura`
-// por linha, so agrupamos por ela); halfStep = metade do passo da grade dessa
-// temperatura, usado como tolerancia pra decidir se um alvo "bate" numa linha
-// (a grade e por temperatura -- cada uma pode ter um numero de pontos
-// diferente, ate por causa do corte em 1000 gal/ft). Alvos que caem depois do
-// ultimo L viram UMA nota so na ultima linha, listando todos.
 function appendDesignPlotSheets(
   wb: XLSX.WorkBook,
   designPlotData: any,
@@ -643,8 +577,6 @@ export const exportRadialDesignPlotTable = (
 
 const SKIN_HEADER = ["V_A [gal/ft]", "skin", "comprimento [ft]", "Nota"];
 
-// Item 4: uma aba por vazao de "Flowrates to compare" -- q0 sai das colunas
-// (agora e a identidade da aba, nao precisa repetir por linha).
 function appendSkinSheets(
   wb: XLSX.WorkBook,
   skinEvolutionData: Record<string, { x: number; y: number; l_ft: number }[]>,
@@ -664,7 +596,7 @@ function appendSkinSheets(
   for (const q0 of flowrates) {
     const qRows = byQ.get(q0)!;
 
-    let targetIdx = qRows.length - 1; // sem alvo -> skin final (ultimo ponto)
+    let targetIdx = qRows.length - 1;
     if (targetSkin != null) {
       let minDiff = Infinity;
       qRows.forEach((r, i) => {
@@ -701,10 +633,6 @@ export const exportRadialSkinTable = (
   saveWorkbook(wb, `PVBtCalc_Radial_Skin_${dateStr}.xlsx`);
 };
 
-// Item 2: Inputs completo. `curves` aqui DEVE vir de state.resultCurves (as
-// mesmas curvas camelCase que alimentam a tabela Simulation/Analysis) --
-// nunca radial.curves cru (RadialCurveResult, chaves snake_case), que e o que
-// deixava rock/acid/concentration/porosity vazios antes desta correcao.
 function buildRadialInputsRows(curves: Curve[], radialState: any, simulationId: string): (string | number)[][] {
   const rows: (string | number)[][] = [];
   rows.push(['Simulation ID', simulationId || '—']);
@@ -720,9 +648,6 @@ function buildRadialInputsRows(curves: Curve[], radialState: any, simulationId: 
 
   const rawTemp = baseCurve.temperature != null ? Number(baseCurve.temperature) : null;
   if (rawTemp != null && Number.isFinite(rawTemp)) {
-    // Curva radial sempre guarda Kelvin (SimuCard.tsx dispatcha radialTemperatureK,
-    // nunca o `temperature` do setup linear) -- mas mantem a mesma checagem
-    // defensiva do buildMetadataRows caso essa convencao mude.
     const tempK = rawTemp >= 100 ? rawTemp : Number((rawTemp + 273.15).toFixed(2));
     const tempC = rawTemp >= 100 ? Number((rawTemp - 273.15).toFixed(2)) : rawTemp;
     rows.push(['Temperature (K)', tempK]);
@@ -736,12 +661,6 @@ function buildRadialInputsRows(curves: Curve[], radialState: any, simulationId: 
   if (baseCurve.wellboreRadiusIn != null) rows.push(['Wellbore Radius (in)', asNumberCell(baseCurve.wellboreRadiusIn)]);
   if (baseCurve.payzoneThicknessFt != null) rows.push(['Payzone Thickness (ft)', asNumberCell(baseCurve.payzoneThicknessFt)]);
 
-  // lastRunSetup: snapshot do setup no momento do Calculate (setLastRunState,
-  // SimuCard.tsx) -- fonte mais confiavel que o setup "ao vivo", que pode ter
-  // sido editado depois do run sem recalcular. minimum_flowrate/flowrate/
-  // step_numbers em particular chegam como STRING quando o usuario mexeu
-  // nesses campos (setup/slice.tsx setParameter grava e.target.value cru) --
-  // por isso passam por asNumberCell, nao so um valor direto.
   const lastRunSetup = radialState?.lastRunSetup;
   if (lastRunSetup?.minimum_flowrate != null) rows.push(['Flowrate Sweep Min (bbl/min)', asNumberCell(lastRunSetup.minimum_flowrate)]);
   if (lastRunSetup?.flowrate != null) rows.push(['Flowrate Sweep Max (bbl/min)', asNumberCell(lastRunSetup.flowrate)]);
@@ -788,9 +707,6 @@ function buildInputsSheet(curves: Curve[], radialState: any, simulationId: strin
   return ws;
 }
 
-// Item 2 + ordem das abas (Inputs | Design | Sim | Skin). `curves` deve ser o
-// subconjunto de state.resultCurves.curves do run radial atual (flowRegime
-// radial + id do run atual) -- ver Chart.tsx.
 export const exportRadialAll = (
   radialState: any,
   curves: Curve[],

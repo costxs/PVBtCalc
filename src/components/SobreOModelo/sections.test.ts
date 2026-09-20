@@ -2,9 +2,6 @@ import { describe, expect, it } from "vitest";
 import { sections as ptSections, subsections as ptSubsections } from "./content.pt";
 import { sections as enSections, subsections as enSubsections } from "./content.en";
 
-// Guarda de paridade: uma secao adicionada a uma lingua e esquecida na
-// outra passa batido ate alguem abrir o app na outra lingua. Ver
-// PVBtCalc_i18n_SobreOModelo.md, Secao 6.
 const EXPECTED_SECTION_IDS = [
   "intro",
   "nomenclature",
