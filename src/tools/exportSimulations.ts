@@ -1,5 +1,5 @@
 import type { Curve } from "../redux/storageresults/slice";
-import type { RadialExportPayload } from "./exportRadialServer";
+import { toAnalysisPayload, type RadialExportPayload } from "./exportRadialServer";
 
 export interface SimulationGroup {
   simId: string;
@@ -69,7 +69,7 @@ export function isActiveRadialRun(group: SimulationGroup, radialState: any): boo
   return group.flowRegime === "radial" && !!radialState?.lastRunSetup?.id && radialState.lastRunSetup.id === group.simId;
 }
 
-export function buildGroupExportPayload(group: SimulationGroup, radialState: any): RadialExportPayload {
+export function buildGroupExportPayload(group: SimulationGroup, radialState: any, analysis?: any): RadialExportPayload {
   const baseCurve = group.curves[0];
   const isCurrent = isActiveRadialRun(group, radialState);
 
@@ -107,6 +107,7 @@ export function buildGroupExportPayload(group: SimulationGroup, radialState: any
     curves: group.curves.map(toRawRadialCurve),
     design_series: isCurrent ? (radialState?.designPlotData?.series ?? []) : [],
     skin_series: isCurrent ? (radialState?.skinEvolutionData ?? {}) : {},
+    analysis: isCurrent && analysis?.status === "ok" && analysis?.regime === "radial" ? toAnalysisPayload(analysis.radial) : null,
     options: {
       show_optimum_path: true,
       show_validity_band: true,

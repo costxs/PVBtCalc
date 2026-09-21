@@ -55,6 +55,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
   const dispatch = useDispatch();
   const { curves } = useSelector((state: RootState) => state.resultCurves);
   const radialState = useSelector((state: RootState) => state.radial);
+  const analysisResult = useSelector((state: RootState) => state.analysisResult);
   const userToken = useSelector((state: RootState) => state.user.token);
   const language = useSelector((state: RootState) => state.ui.language);
   const isPt = language === "pt";
@@ -223,7 +224,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
 
       for (const f of formats) {
         try {
-          const payload = buildGroupExportPayload(g, radialState);
+          const payload = buildGroupExportPayload(g, radialState, analysisResult);
           if (f === "workbook") {
             const r = await exportRadialWorkbookServer(payload, userToken || "", { includeImages: true, directoryHandle: targetDir });
             rows.push({ simId: g.simId, format: f, status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });

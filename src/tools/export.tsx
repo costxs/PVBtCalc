@@ -3,6 +3,7 @@ import { saveAs } from "file-saver";
 import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
 import { Curve } from "../redux/storageresults/slice";
 import { buildSimulationTable, buildDesignTable, buildSkinTable } from "../components/columnsConfig";
+import { buildAnalysisRows, ANALYSIS_META, type AnalysisTableInput } from "./analysisTable";
 import { readValidity } from "./validityWindow";
 import { analyzeLinearOptimum, isExperimentalCurve, linearNote, linearSummaryRows } from "./linearExport";
 
@@ -573,6 +574,21 @@ export const exportRadialDesignPlotTable = (
   appendDesignPlotSheets(wb, designPlotData, payzoneThicknessFt, targets);
   const dateStr = new Date().toISOString().split("T")[0];
   saveWorkbook(wb, `PVBtCalc_Radial_Design_${dateStr}.xlsx`);
+};
+
+export const exportRadialAnalysisTable = (result: AnalysisTableInput | null | undefined) => {
+  if (!result) return;
+  const rows = buildAnalysisRows(result, 'pt');
+  if (rows.length === 0) return;
+  const [label, unit] = ANALYSIS_META[result.sweepParam] ?? [result.sweepParam, ''];
+  const header = [`${label} [${unit}]`, "q_opt [gal/(ft.min)]", "V_opt [gal/ft]", "tbt [min]", "Nota"];
+  const aoa: (string | number | null)[][] = [header, ...rows.map((r) => [r.x, r.q_opt, r.v_opt, r.tbt_min, r.nota])];
+  const highlight = new Set<number>();
+  rows.forEach((r, i) => { if (r.nota) highlight.add(i); });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, finalizeSheet(aoa, highlight, [0, 3]), sanitizeSheetName(`Analysis ${label}`));
+  const dateStr = new Date().toISOString().split("T")[0];
+  saveWorkbook(wb, `PVBtCalc_Radial_Analysis_${dateStr}.xlsx`);
 };
 
 const SKIN_HEADER = ["V_A [gal/ft]", "skin", "comprimento [ft]", "Nota"];

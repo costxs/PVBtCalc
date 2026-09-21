@@ -209,7 +209,7 @@ const radialSlice = createSlice({
     skinFlowrates: [0.8, 1.6, 3.2] as number[],
     radialTemperatureK: 338.71,
     designTemperatures: [297.04, 338.71, 422.04] as number[],
-    designPlotData: null as { series: { temperature_k: number, optimum_rate_series: number[][], optimum_volume_series: number[][] }[], has_clipped_volume?: boolean } | null,
+    designPlotData: null as { series: { temperature_k: number, optimum_rate_series: number[][], optimum_volume_series: number[][] }[], has_clipped_volume?: boolean, outside_calibrated_range?: number[] } | null,
     designPlotLoading: false,
     designPlotError: false,
     lastRunSetup: null as any,

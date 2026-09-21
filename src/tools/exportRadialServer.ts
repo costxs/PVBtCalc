@@ -10,6 +10,34 @@ interface AxisLimitsPayload {
   max?: number;
 }
 
+export interface RadialAnalysisPayload {
+  sweep_param: string;
+  sweep_values: number[];
+  optimum_rate: number[];
+  optimum_volume: number[];
+  has_clipped_volume: boolean;
+  first_clipped_value: number | null;
+  skipped_values: number[];
+  outside_calibrated_range: number[];
+}
+
+export function toAnalysisPayload(r: {
+  sweepParam: string; sweepValues: number[]; optimumRate: number[]; optimumVolume: number[];
+  hasClippedVolume: boolean; firstClippedValue: number | null; skippedValues: number[]; outsideCalibratedRange: number[];
+} | null | undefined): RadialAnalysisPayload | null {
+  if (!r) return null;
+  return {
+    sweep_param: r.sweepParam,
+    sweep_values: r.sweepValues,
+    optimum_rate: r.optimumRate,
+    optimum_volume: r.optimumVolume,
+    has_clipped_volume: r.hasClippedVolume,
+    first_clipped_value: r.firstClippedValue,
+    skipped_values: r.skippedValues,
+    outside_calibrated_range: r.outsideCalibratedRange,
+  };
+}
+
 export interface RadialExportPayload {
   inputs: {
     simulation_id: string;
@@ -31,6 +59,7 @@ export interface RadialExportPayload {
   curves: any[];
   design_series: any[];
   skin_series: Record<string, { x: number; y: number; l_ft: number }[]>;
+  analysis?: RadialAnalysisPayload | null;
   options: {
     target_lengths?: number[] | null;
     target_skin?: number | null;

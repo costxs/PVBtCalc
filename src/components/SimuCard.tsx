@@ -26,6 +26,7 @@ import {
 import { setVisibleChart } from "../redux/ui/slice";
 import { computeBeta, formatTargets, parseTargetInput } from "../redux/radial/targetConversion";
 import { fmtBblMin } from "../tools/validityWindow";
+import { T_CALIBRATED_K } from "../tools/sweepValidation";
 
 const LINEAR_FLOWRATE_DEFAULTS = { min: 0.5, max: 10 };
 const RADIAL_FLOWRATE_DEFAULTS = { min: 0.1, max: 5 };
@@ -83,7 +84,7 @@ export default function SimuSetupCard() {
     if (newDesignTemperature.trim() === '' || Number.isNaN(Number(newDesignTemperature))) { setDesignTemperatureError('Enter a numeric value.'); return; }
     if (designTemperatures.length >= 6) { setDesignTemperatureError('Maximum of 6 temperatures.'); return; }
     const temp = Number(newDesignTemperature);
-    if (temp < 283 || temp > 478) { setDesignTemperatureError('Must be between 283 and 478 K.'); return; }
+    if (temp < T_CALIBRATED_K[0] || temp > T_CALIBRATED_K[1]) { setDesignTemperatureError(`Must be between ${T_CALIBRATED_K[0]} and ${T_CALIBRATED_K[1]} K.`); return; }
     if (designTemperatures.includes(temp)) { setDesignTemperatureError('Temperature already added.'); return; }
     dispatch(addDesignTemperature(temp));
     setNewDesignTemperature('');
@@ -136,7 +137,7 @@ export default function SimuSetupCard() {
   const isIdUsed = Boolean(id) && ids.some(existingId => existingId === id || existingId.startsWith(`${id} · `));
 
   const canCalculate = flowRegime === 'radial'
-    ? Boolean(id) && targetsLambda.length > 0 && radialTemperatureK >= 283 && radialTemperatureK <= 478
+    ? Boolean(id) && targetsLambda.length > 0 && radialTemperatureK >= T_CALIBRATED_K[0] && radialTemperatureK <= T_CALIBRATED_K[1]
     : Boolean(id);
 
   const [radialCalculatedId, setRadialCalculatedId] = useState<string | null>(null);
@@ -295,8 +296,8 @@ export default function SimuSetupCard() {
               <label>System Temperature <span className="text-muted">({flowRegime === 'radial' ? 'K' : '°C'})</span></label>
               {flowRegime === 'radial' ? (
                 <>
-                  <input type="number" className="input" value={radialTemperatureK} onChange={(e) => dispatch(setRadialTemperatureK(Number(e.target.value)))} style={{ borderColor: (radialTemperatureK < 283 || radialTemperatureK > 478) ? '#c0392b' : undefined }} />
-                  {(radialTemperatureK < 283 || radialTemperatureK > 478) && <div style={{ color: '#c0392b', fontSize: '11.5px', marginTop: '4px' }}>Must be between 283 and 478 K.</div>}
+                  <input type="number" className="input" value={radialTemperatureK} onChange={(e) => dispatch(setRadialTemperatureK(Number(e.target.value)))} style={{ borderColor: (radialTemperatureK < T_CALIBRATED_K[0] || radialTemperatureK > T_CALIBRATED_K[1]) ? '#c0392b' : undefined }} />
+                  {(radialTemperatureK < T_CALIBRATED_K[0] || radialTemperatureK > T_CALIBRATED_K[1]) && <div style={{ color: '#c0392b', fontSize: '11.5px', marginTop: '4px' }}>Must be between {T_CALIBRATED_K[0]} and {T_CALIBRATED_K[1]} K.</div>}
                 </>
               ) : (
                 <input type="number" className="input" value={temperature} onChange={(e) => handleParam({ key: 'temperature', value: Number(e.target.value) })} />

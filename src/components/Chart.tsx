@@ -6,6 +6,7 @@ import { motion, AnimatePresence, useReducedMotion, LayoutGroup } from "motion/r
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
 import { CurveAnalysis } from "../redux/analysisresults/slice";
 import { fetchDesignPlot } from "../redux/radial/slice";
+import { T_CALIBRATED_K } from "../tools/sweepValidation";
 import { getOptimalPointsForDesign } from "../tools/chartDataUtils";
 import DesignPlotReader from "./DesignPlotReader";
 import { Chip, ChipRow, SegmentedControl, toggleInSet } from "./ChartControls";
@@ -13,6 +14,7 @@ import { splitByValidity, collectValidityOffenders, readValidity, fmtBblMin, fmt
 import { analyzeLinearOptimum, linearOptimumMarker } from "../tools/linearExport";
 import { resolveAxisLimit } from "../tools/axisLimits";
 import { SEVERITY_COLORS } from "../tools/pointSeverity";
+import PhysicalLimitNote from "./PhysicalLimitNote";
 import { setVisibleChart } from "../redux/ui/slice";
 import { selectLinearChartCurves, selectRadialChartCurves, toValidityAwareCurves } from "../tools/chartCurveSelectors";
 
@@ -268,23 +270,129 @@ const ChartComponent = () => {
     }
   };
 
+  const getRadialSweepAxisName = (param: string) => {
+    switch (param) {
+      case 'temperature': return "System Temperature (K)";
+      case 'porosity': return "Porosity (fraction)";
+      case 'acid_concentration': return "Acid Concentration (w/w)";
+      case 'wellbore_diameter': return "Wellbore Diameter (in)";
+      case 'payzone_thickness': return "Payzone Thickness (ft)";
+      default: return param;
+    }
+  };
+
+  // Estado do Analysis Chart: ou ha dado plotavel do regime ATUAL, ou ha uma mensagem explicita.
+  const analysisForCurrentRegime = analyse.regime === flowRegime;
+  const analysisPlottable = analyse.status === 'ok' && analysisForCurrentRegime && (
+    flowRegime === 'radial'
+      ? (analyse.radial?.sweepValues.length ?? 0) > 0
+      : analyse.analiticalpoints.length > 0
+  );
+  const analysisMessage: string | null = analysisPlottable ? null
+    : analyse.status === 'loading' && analysisForCurrentRegime ? 'Calculating…'
+    : analyse.status === 'error' && analysisForCurrentRegime ? `Analysis failed: ${analyse.error ?? 'unknown error'}`
+    : analyse.status === 'ok' && analysisForCurrentRegime
+      ? (flowRegime === 'radial' && analyse.radial?.hasClippedVolume
+          ? 'Every swept value required more than 1000 gal/ft at the optimum, so no point could be plotted. Try a shorter target or a different range.'
+          : 'The calculation returned no points for this range.')
+    : analyse.status !== 'idle' && !analysisForCurrentRegime
+      ? `The last analysis was run in ${analyse.regime} mode. Run the Optimum Analysis again for ${flowRegime} mode.`
+    : 'Set a sweep range in Optimum Analysis and press "Plot analysis curve".';
+
   useEffect(() => {
     const isRadial = flowRegime === 'radial';
-    const xAxisIsLog = !isRadial && xisLog;
-    const yAxisIsLog = isRadial;
-    const showOptimumMarker = !isRadial && opt;
+
+    // Sem dado plotavel nao ha opcao de grafico: o painel de mensagem (analysisMessage) assume.
+    if (!analysisPlottable) {
+      setChartOptionsA({});
+      return;
+    }
+
+    if (isRadial && analyse.radial) {
+      const r = analyse.radial;
+      const xRadial = xdefinedLimit ? resolveAxisLimit(xLimit[0], xLimit[1], false) : {};
+      const rateColor = CURVE_PALETTE[0];
+      const volColor = CURVE_PALETTE[3];
+      setChartOptionsA({
+        tooltip: { trigger: "axis" },
+        legend: { top: 0 },
+        toolbox: { feature: { dataZoom: { yAxisIndex: 'none' }, restore: {} } },
+        dataZoom: [
+          { type: 'inside', xAxisIndex: 0 },
+          { type: 'slider', xAxisIndex: 0, bottom: 4, height: 14, showDataShadow: false, handleSize: '80%', showDetail: false }
+        ],
+        grid: { bottom: 60, left: 70, right: 70, top: 50, containLabel: true },
+        xAxis: {
+          z: 10,
+          name: getRadialSweepAxisName(r.sweepParam),
+          nameLocation: 'middle',
+          nameGap: 30,
+          type: "value",
+          scale: true,
+          min: xRadial.min,
+          max: xRadial.max,
+          splitLine: { show: grid }
+        },
+        yAxis: [
+          {
+            type: 'value',
+            name: 'Optimum Injection Rate, gal/(ft·min)',
+            nameLocation: 'middle',
+            nameGap: 55,
+            scale: true,
+            splitLine: { show: grid }
+          },
+          {
+            type: 'value',
+            position: 'right',
+            name: 'Acid Volume @ Optimum Rate, gal/ft',
+            nameLocation: 'middle',
+            nameGap: 55,
+            scale: true,
+            splitLine: { show: false }
+          }
+        ],
+        series: [
+          {
+            name: 'Optimum rate',
+            type: 'line',
+            yAxisIndex: 0,
+            showSymbol: true,
+            smooth: true,
+            data: r.sweepValues.map((x, i) => [x, r.optimumRate[i]]),
+            lineStyle: { type: 'solid', width: 2, color: rateColor },
+            itemStyle: { color: rateColor }
+          },
+          {
+            name: 'Acid volume @ optimum',
+            type: 'line',
+            yAxisIndex: 1,
+            showSymbol: true,
+            smooth: true,
+            data: r.sweepValues.map((x, i) => [x, r.optimumVolume[i]]),
+            lineStyle: { type: 'dashed', width: 2, color: volColor },
+            itemStyle: { color: volColor }
+          }
+        ]
+      });
+      return;
+    }
+
+    const xAxisIsLog = xisLog;
+    const yAxisIsLog = false;
+    const showOptimumMarker = opt;
 
     const analysisSerie = ({
       name: analyse.id + ' variation',
       type: "line",
-      data: analyse.analiticalpoints ? analyse.analiticalpoints.map((x, index) => {
-        const yVal = isRadial ? analyse.volumeToBt?.[index] : analyse.pvbtPoints?.[index];
+      data: analyse.analiticalpoints.map((x, index) => {
+        const yVal = analyse.pvbtPoints?.[index];
         return [
           Number(x?.toFixed(4) || 0),
           Number(yVal?.toFixed(4) || 0),
         ];
-      }) : [],
-      color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+      }),
+      color: CURVE_PALETTE[0],
       showSymbol: true,
       smooth: true,
       markPoint: showOptimumMarker ? {
@@ -331,7 +439,7 @@ const ChartComponent = () => {
         { type: 'inside', xAxisIndex: 0 },
         { type: 'slider', xAxisIndex: 0, bottom: 0 }
       ],
-      grid: { bottom: 60, left: 50, right: 40, top: 30 },
+      grid: { bottom: 60, left: 50, right: 40, top: 30, containLabel: true },
       xAxis: {
         z: 10,
         name: getXAxisName(sweepParameter),
@@ -344,7 +452,9 @@ const ChartComponent = () => {
       },
       yAxis: {
         z: 10,
-        name: isRadial ? "Acid Volume (gal/ft)" : "PVBt (dimensionless)",
+        name: "PVBt (dimensionless)",
+        nameLocation: 'middle',
+        nameGap: 45,
         type: yAxisIsLog ? "log" : "value",
         min: yRes.min,
         max: yRes.max,
@@ -352,7 +462,7 @@ const ChartComponent = () => {
       },
       series: analysisSerie,
     });
-  }, [analyse, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, xLimit, yLimit, grid, flowRegime, sweepParameter]);
+  }, [analyse, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, xLimit, yLimit, grid, flowRegime, sweepParameter, analysisPlottable]);
 
   useEffect(() => {
     const round4 = (p: [number, number] | null) =>
@@ -1121,6 +1231,8 @@ const ChartComponent = () => {
                   exp.exportRadialSimulationAll(radialSimulationCurves, currentSimulationId);
                 } else if (visibleChart === 'design') {
                   exp.exportRadialDesignPlotTable(designPlotData, radialState.payzoneThickness, radialState.targetMode === 'length' ? radialCurves.map(c => c.target) : undefined);
+                } else if (visibleChart === 'B') {
+                  if (analysisPlottable) exp.exportRadialAnalysisTable(analyse.radial);
                 } else if (visibleChart === 'skin') {
                   exp.exportRadialSkinTable(skinEvolutionData, radialState.targetMode === 'skin' ? radialCurves[0]?.target : undefined);
                 }
@@ -1195,7 +1307,7 @@ const ChartComponent = () => {
           {visibleChart === 'A' ? "Simulation Chart" : visibleChart === 'design' ? "Design Plot" : "Analysis Chart"}
         </h5>
         <span className="text-muted" style={{ fontSize: '11.5px' }}>
-          {visibleChart === 'A' ? (flowRegime === 'radial' ? "Radial Injection Efficiency (Volume vs Flowrate)" : "Pore volumes injected to breakthrough vs. injection rate") : visibleChart === 'design' ? "Tunnel advancement sizing mapping optimal flowrates and volumes" : (flowRegime === 'radial' ? "Acid Volume at fixed flowrate across the swept parameter" : "PVBt at fixed flowrate across the swept parameter")}
+          {visibleChart === 'A' ? (flowRegime === 'radial' ? "Radial Injection Efficiency (Volume vs Flowrate)" : "Pore volumes injected to breakthrough vs. injection rate") : visibleChart === 'design' ? "Tunnel advancement sizing mapping optimal flowrates and volumes" : (flowRegime === 'radial' ? "Optimum injection rate and acid volume at the optimum, at a fixed target length, across the swept parameter" : "PVBt at fixed flowrate across the swept parameter")}
         </span>
       </div>
 
@@ -1259,23 +1371,29 @@ const ChartComponent = () => {
         </div>
       )}
 
+      {visibleChart === 'design' && (designPlotData?.outside_calibrated_range?.length ?? 0) > 0 && (
+        <div role="alert" style={{ margin: '0 2px 10px', padding: '9px 12px', fontSize: '12px', lineHeight: 1.5, border: `1px solid ${SEVERITY_COLORS.warn}`, borderLeft: `4px solid ${SEVERITY_COLORS.warn}`, borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12' }}>
+          <strong>{isPt ? 'Fora da faixa calibrada:' : 'Outside calibrated range:'}</strong> {designPlotData!.outside_calibrated_range!.join(', ')} K — {isPt ? `fora de ${T_CALIBRATED_K[0]}–${T_CALIBRATED_K[1]} K; correlações extrapoladas, use com cautela.` : `outside ${T_CALIBRATED_K[0]}–${T_CALIBRATED_K[1]} K; the model correlations are extrapolated, treat with caution.`}
+        </div>
+      )}
+
       {visibleChart === 'design' && designPlotData?.has_clipped_volume && (
-        <div role="alert" style={{
-          margin: '0 2px 10px', padding: '9px 12px', fontSize: '12px', lineHeight: 1.5,
-          border: `1px solid ${SEVERITY_COLORS.warn}`, borderLeft: `4px solid ${SEVERITY_COLORS.warn}`,
-          borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12',
-        }}>
-          {isPt ? (
-            <>
-              <strong>Aviso de Limite Físico:</strong> Alguns comprimentos alvo exigiram volumes otimizados &gt; 1000 gal/ft e foram <strong>truncados</strong>.
-              A mediana de tratamentos reais em campo é ~75 gal/ft, com teto raramente superior a 700 gal/ft (Burton et al.). Valores acima de 1000 gal/ft distorcem a escala e indicam regimes inviáveis.
-            </>
-          ) : (
-            <>
-              <strong>Physical Limit Warning:</strong> Some target lengths required optimized volumes &gt; 1000 gal/ft and were <strong>clipped</strong>.
-              The median of real field treatments is ~75 gal/ft, with a ceiling rarely above 700 gal/ft (Burton et al.). Values above 1000 gal/ft distort the scale and indicate infeasible regimes.
-            </>
-          )}
+        <PhysicalLimitNote isPt={isPt} swept="length" />
+      )}
+
+      {visibleChart === 'B' && flowRegime === 'radial' && analysisPlottable && analyse.radial?.hasClippedVolume && (
+        <PhysicalLimitNote isPt={isPt} swept={analyse.radial.sweepParam} />
+      )}
+
+      {visibleChart === 'B' && flowRegime === 'radial' && analysisPlottable && (analyse.radial?.outsideCalibratedRange.length ?? 0) > 0 && (
+        <div role="alert" style={{ margin: '0 2px 10px', padding: '9px 12px', fontSize: '12px', lineHeight: 1.5, border: `1px solid ${SEVERITY_COLORS.warn}`, borderLeft: `4px solid ${SEVERITY_COLORS.warn}`, borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12' }}>
+          <strong>{isPt ? 'Fora da faixa calibrada:' : 'Outside calibrated range:'}</strong> {isPt ? `${analyse.radial!.outsideCalibratedRange.length} ponto(s) de temperatura fora de ${T_CALIBRATED_K[0]}–${T_CALIBRATED_K[1]} K — extrapolação das correlações do modelo, use com cautela.` : `${analyse.radial!.outsideCalibratedRange.length} temperature point(s) lie outside ${T_CALIBRATED_K[0]}–${T_CALIBRATED_K[1]} K — the model correlations are extrapolated there; treat with caution.`}
+        </div>
+      )}
+
+      {visibleChart === 'B' && flowRegime === 'radial' && analysisPlottable && (analyse.radial?.skippedValues.length ?? 0) > 0 && (
+        <div role="status" style={{ margin: '0 2px 10px', padding: '9px 12px', fontSize: '12px', border: `1px solid ${SEVERITY_COLORS.warn}`, borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12' }}>
+          {isPt ? 'Sem vazão ótima interior para' : 'No interior optimum exists for'} {analyse.radial!.skippedValues.map(v => Number(v.toPrecision(4))).join(', ')} — {isPt ? 'valores omitidos.' : 'these values were skipped.'}
         </div>
       )}
 
@@ -1370,7 +1488,13 @@ const ChartComponent = () => {
               onAnimationComplete={handleAnimationComplete}
               style={{ height: "100%", width: "100%", position: "absolute", top: 0, left: 0 }}
             >
-              <ReactECharts option={chartOptionsA} ref={chartRefB} notMerge={true} style={{ height: "100%", width: "100%" }} />
+              {analysisMessage ? (
+                <div role="status" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center', fontSize: '13.5px', color: analyse.status === 'error' && analysisForCurrentRegime ? '#c0392b' : 'var(--color-text-muted, #666)' }}>
+                  {analysisMessage}
+                </div>
+              ) : (
+                <ReactECharts option={chartOptionsA} ref={chartRefB} notMerge={true} style={{ height: "100%", width: "100%" }} />
+              )}
             </motion.div>
           )}
           {visibleChart === 'design' && (

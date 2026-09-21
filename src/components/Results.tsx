@@ -7,6 +7,7 @@ import type { Curve } from '../redux/storageresults/slice'
 import { pointSeverity, SEVERITY_COLORS } from "../tools/pointSeverity";
 import DataTable from "./DataTable";
 import { buildSimulationTable, buildSkinTable, buildDesignTable } from "./columnsConfig";
+import { buildAnalysisTable } from "../tools/analysisTable";
 import { matchesFlowRegime } from "../tools/regimeFilter";
 
 const MARK_ERROR = SEVERITY_COLORS.error;
@@ -77,13 +78,20 @@ export default function ResultTab() {
 
   const isSkinTab = flowRegime === 'radial' && visibleChart === 'skin';
   const isDesignTab = flowRegime === 'radial' && visibleChart === 'design';
-  const isCurveTab = !isSkinTab && !isDesignTab;
+  const isAnalysisTab = flowRegime === 'radial' && visibleChart === 'B';
+  const isCurveTab = !isSkinTab && !isDesignTab && !isAnalysisTab;
 
   const simTable = isCurveTab ? buildSimulationTable(curve) : null;
   const skinTable = isSkinTab ? buildSkinTable(skinEvolutionData) : null;
   const designTable = isDesignTab ? buildDesignTable(designPlotData, payzoneThickness) : null;
 
-  const table = simTable || skinTable || designTable!;
+  const analysis = useSelector((state: RootState) => state.analysisResult);
+  const isPt = useSelector((state: RootState) => state.ui.language) === 'pt';
+  const analysisTable = isAnalysisTab
+    ? buildAnalysisTable(analysis.status === 'ok' && analysis.regime === 'radial' ? analysis.radial : null, isPt ? 'pt' : 'en')
+    : null;
+
+  const table = simTable || skinTable || designTable || analysisTable!;
   const acid = (curve as any)?.acid || '';
   const rock = (curve as any)?.rock || '';
 
@@ -96,7 +104,7 @@ export default function ResultTab() {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '16px' }}>
         <span className="secnum">05</span>
         <h5 style={{ margin: 0, fontSize: '18px', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-          {isSkinTab ? 'Skin Evolution Table' : isDesignTab ? 'Design Plot Table' : 'Optimum Parameters'}
+          {isSkinTab ? 'Skin Evolution Table' : isDesignTab ? 'Design Plot Table' : isAnalysisTab ? 'Optimum Analysis Table' : 'Optimum Parameters'}
         </h5>
         <span style={{ flex: 1, height: '1px', background: 'var(--color-divider)' }}></span>
       </div>
@@ -147,7 +155,7 @@ export default function ResultTab() {
           rows={table.rows}
           markerColumnKey={simTable?.markerColumnKey}
           renderMarker={simTable ? (row) => <PointMarker status={row.__status} withinValidity={row.__withinValidity} /> : undefined}
-          isHighlighted={simTable?.isHighlighted}
+          isHighlighted={simTable?.isHighlighted ?? analysisTable?.isHighlighted}
         />
       </div>
     </section>
