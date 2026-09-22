@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { configureStore } from "@reduxjs/toolkit";
-import fixture from "../../../shared-fixtures/export_text.json";
-import analysisFixture from "../../../shared-fixtures/radial_analysis_table_cases.json";
+import fixture from "../../shared-fixtures/export_text.json";
+import analysisFixture from "../../shared-fixtures/radial_analysis_table_cases.json";
 import uiReducer, { setLanguage } from "../redux/ui/slice";
 import * as X from "./exportText";
 import { buildVerticalTableSheet } from "./export";

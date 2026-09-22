@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import fixture from "../../../shared-fixtures/radial_analysis_table_cases.json";
+import fixture from "../../shared-fixtures/radial_analysis_table_cases.json";
 import { makeT } from "../i18n";
 import { EXPORT_T } from "./exportText";
 import { buildAnalysisRows, buildAnalysisTable, type AnalysisTableInput } from "./analysisTable";

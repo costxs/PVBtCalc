@@ -36,7 +36,7 @@ describe("validateSweep", () => {
   });
 });
 
-import fixture from "../../../shared-fixtures/temperature_calibration.json";
+import fixture from "../../shared-fixtures/temperature_calibration.json";
 import { T_CALIBRATED_K } from "./sweepValidation";
 
 describe("T_CALIBRATED_K — fixture compartilhada TS<->Python", () => {

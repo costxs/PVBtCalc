@@ -5,7 +5,10 @@ import path from "node:path";
 import { en } from "../src/i18n/en.ts";
 import { pt } from "../src/i18n/pt.ts";
 
-const fx = JSON.parse(fs.readFileSync(path.resolve("../shared-fixtures/export_text.json"), "utf8"));
+const fxPath = fs.existsSync(path.resolve("shared-fixtures/export_text.json"))
+  ? path.resolve("shared-fixtures/export_text.json")
+  : path.resolve("../shared-fixtures/export_text.json");
+const fx = JSON.parse(fs.readFileSync(fxPath, "utf8"));
 const esc = (s) => String(s).replaceAll("|", "\\|").replaceAll("\n", " ");
 const row = (cells) => `| ${cells.map(esc).join(" | ")} |\n`;
 const c = fx.constants;

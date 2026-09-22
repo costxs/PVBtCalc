@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyzeLinearOptimum, linearNote, linearOptimumMarker, linearSummaryRows } from "./linearExport";
 import type { Curve } from "../redux/storageresults/slice";
-import fixture from "../../../shared-fixtures/linear_optimum_cases.json";
+import fixture from "../../shared-fixtures/linear_optimum_cases.json";
 
 const cases = fixture.cases as any[];
 
