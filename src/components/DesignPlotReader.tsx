@@ -1,6 +1,8 @@
+import { useT, type TFn } from "../i18n";
+import { parseDecimal, localizeNumberText } from "../tools/parseDecimal";
+import { roundCelsius } from "../tools/temperature";
+import NumberInput from "./NumberInput";
 import { useMemo, useState, useEffect } from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "../redux/store";
 import { SEVERITY_COLORS } from "../tools/pointSeverity";
 import { extractDesignPlotGrid, readDesignPlot, isDesignPlotOutOfRange, DesignPlotReadMode, DesignPlotReading } from "../tools/designPlotReader";
 
@@ -9,11 +11,11 @@ interface DesignPlotReaderProps {
   onReadingChange?: (data: { mode: DesignPlotReadMode; target: number; reading: DesignPlotReading; temperatureK: number } | null) => void;
 }
 
-function getModeOptions(isPt: boolean): { value: DesignPlotReadMode; label: string; unit: string }[] {
+function getModeOptions(t: TFn): { value: DesignPlotReadMode; label: string; unit: string }[] {
   return [
-    { value: "volume", label: "Acid Volume, gal/ft", unit: "gal/ft" },
-    { value: "rate", label: "Optimum Injection Rate, gal/(ft·min)", unit: "gal/(ft.min)" },
-    { value: "length", label: "Wormhole Length, ft", unit: isPt ? "ft de wormhole" : "ft of wormhole" },
+    { value: "volume", label: t("chart.axis_acid_volume"), unit: "gal/ft" },
+    { value: "rate", label: t("chart.axis_opt_rate"), unit: "gal/(ft.min)" },
+    { value: "length", label: t("chart.axis_wormhole_length"), unit: t("designReader.ft_of_wormhole") },
   ];
 }
 
@@ -30,16 +32,16 @@ const FIELD_META: Record<"length" | "qOpt" | "vOpt", { label: string; unit: stri
 };
 
 export default function DesignPlotReader({ series, onReadingChange }: DesignPlotReaderProps) {
-  const isPt = useSelector((state: RootState) => state.ui.language) === "pt";
+  const { t, lang } = useT();
   const [mode, setMode] = useState<DesignPlotReadMode>("volume");
   const [targetInput, setTargetInput] = useState("15");
   const [temperatureK, setTemperatureK] = useState(series[0]?.temperature_k ?? 0);
 
   const grid = useMemo(() => extractDesignPlotGrid(series, temperatureK), [series, temperatureK]);
-  const modeOptions = getModeOptions(isPt);
+  const modeOptions = getModeOptions(t);
   const modeMeta = modeOptions.find((m) => m.value === mode)!;
 
-  const target = Number(targetInput);
+  const target = parseDecimal(targetInput) ?? NaN; // comma or dot
   const reading = useMemo(() => {
     if (!grid || grid.length < 2 || !Number.isFinite(target) || target <= 0) return null;
     return readDesignPlot(grid, mode, target);
@@ -60,7 +62,7 @@ export default function DesignPlotReader({ series, onReadingChange }: DesignPlot
       margin: "0 2px 12px", padding: "10px 14px", border: "1px solid #ddd", borderRadius: "6px",
       display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", fontSize: "12.5px",
     }}>
-      <strong style={{ letterSpacing: "0.04em", textTransform: "uppercase", fontSize: "11px" }}>Read from</strong>
+      <strong style={{ letterSpacing: "0.04em", textTransform: "uppercase", fontSize: "11px" }}>{t('designReader.read_from')}</strong>
 
       <select value={mode} onChange={(e) => setMode(e.target.value as DesignPlotReadMode)}>
         {modeOptions.map((m) => (
@@ -68,28 +70,19 @@ export default function DesignPlotReader({ series, onReadingChange }: DesignPlot
         ))}
       </select>
 
-      <input
-        type="number"
-        min={0}
-        step="any"
-        value={targetInput}
-        onChange={(e) => setTargetInput(e.target.value)}
-        style={{ width: "90px" }}
-      />
+      <NumberInput value={targetInput} onChange={() => {}} onText={setTargetInput} style={{ width: "90px" }} />
 
       <select value={temperatureK} onChange={(e) => setTemperatureK(Number(e.target.value))}>
         {series.map((s) => (
-          <option key={s.temperature_k} value={s.temperature_k}>{s.temperature_k} K</option>
+          <option key={s.temperature_k} value={s.temperature_k}>{roundCelsius(s.temperature_k, 2)} °C</option>
         ))}
       </select>
 
       <span style={{ marginLeft: "auto" }}>
-        {!reading && <span className="text-muted">{isPt ? "informe um valor positivo" : "enter a positive value"}</span>}
+        {!reading && <span className="text-muted">{t("designReader.enter_a_positive_value")}</span>}
         {reading && isDesignPlotOutOfRange(reading) && (
           <span style={{ color: SEVERITY_COLORS.warn }}>
-            {isPt
-              ? <>fora da faixa coberta pelas curvas — {modeMeta.label} entre {reading.min.toFixed(3)} e {reading.max.toFixed(3)} {modeMeta.unit}</>
-              : <>outside the range covered by the curves — {modeMeta.label} between {reading.min.toFixed(3)} and {reading.max.toFixed(3)} {modeMeta.unit}</>}
+            {t("designReader.out_of_range", { label: modeMeta.label, min: localizeNumberText(reading.min.toFixed(3), lang), max: localizeNumberText(reading.max.toFixed(3), lang), unit: modeMeta.unit })}
           </span>
         )}
         {reading && !isDesignPlotOutOfRange(reading) && (
@@ -99,7 +92,7 @@ export default function DesignPlotReader({ series, onReadingChange }: DesignPlot
               return (
                 <span key={field}>
                   {i > 0 && "  ·  "}
-                  {meta.label} = {reading[field].toFixed(meta.digits)} {meta.unit}
+                  {meta.label} = {localizeNumberText(reading[field].toFixed(meta.digits), lang)} {meta.unit}
                 </span>
               );
             })}

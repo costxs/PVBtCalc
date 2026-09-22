@@ -1,4 +1,6 @@
 
+import { parseDecimal } from "../../tools/parseDecimal";
+
 export const IN_TO_M = 0.0254;
 export const FT_PER_L = 0.3048;
 export const L_CHAR = 1.0;
@@ -47,8 +49,8 @@ export function parseTargetInput(
   mode: TargetMode,
   { L = L_CHAR, beta }: { L?: number; beta: number }
 ): number | null {
-  const n = Number(text);
-  if (Number.isNaN(n)) return null;
+  const n = parseDecimal(text);
+  if (n === null) return null;
   if (mode === "length") {
     if (n <= 0) return null;
     return ftToLambda(n, L);

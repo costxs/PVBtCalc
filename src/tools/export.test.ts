@@ -64,3 +64,31 @@ describe("buildVerticalTableSheet — destaque da linha ótima no modelo linear"
     expect(row4Cell.s?.fill?.fgColor?.rgb).not.toBe("FFF2CC");
   });
 });
+
+function cellText(ws: XLSX.WorkSheet): string[] {
+  return Object.keys(ws)
+    .filter((k) => k[0] !== "!")
+    .map((k) => String((ws as any)[k]?.v ?? ""));
+}
+
+describe("buildVerticalTableSheet — Inputs Temperature row is Celsius only", () => {
+  const base = {
+    id: "t", flowratePoints: [1, 2], pvbtPoints: [0.5, 0.4], intersticialVelocity: [1, 2],
+    iDa: [1, 2], volumeToBt: [1, 2], timeToBt: [1, 2], wormholeVelocity: [1, 2], darcyVelocity: [1, 2],
+  };
+
+  it("linear (curve.temperature stored in °C)", () => {
+    const text = cellText(buildVerticalTableSheet({ ...base, flowRegime: "linear", rock: "r", acid: "a", concentration: 0.15, porosity: 0.15, temperature: 24.05 } as Curve));
+    expect(text).toContain("Temperature (°C)");
+    expect(text).toContain("24.05");
+    expect(text.some((t) => t.includes("Temperature (K)"))).toBe(false);
+  });
+
+  it("radial (curve.temperature stored in K)", () => {
+    const text = cellText(buildVerticalTableSheet({ ...base, flowRegime: "radial", rock: "r", acid: "a", concentration: 0.15, porosity: 0.15, temperature: 297.2, targetLabel: "5.00 ft" } as Curve));
+    expect(text).toContain("Temperature (°C)");
+    expect(text).toContain("24.05");
+    expect(text.some((t) => t.includes("Temperature (K)"))).toBe(false);
+    expect(text.some((t) => t === "297.2")).toBe(false);
+  });
+});

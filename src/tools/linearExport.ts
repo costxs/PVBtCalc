@@ -1,8 +1,9 @@
 import type { Curve } from "../redux/storageresults/slice";
 import { fmtBblMin, readValidity } from "./validityWindow";
+import { NOT_AVAILABLE, linearNote as linearNoteText } from "./exportText";
 
 export const Q_UNIT = "cm³/min";
-export const NOT_AVAILABLE = "não disponível";
+export { NOT_AVAILABLE };
 
 export function isExperimentalCurve(c: Curve): boolean {
   return c.acid === "Experimental" && c.rock === "Experimental";
@@ -58,10 +59,7 @@ export function linearOptimumMarker(
 
 export function linearNote(info: LinearOptimumInfo, i: number): string {
   if (i !== info.minIdx) return "";
-  const qTxt = info.qOpt != null ? `; q_opt = ${fmtBblMin(info.qOpt)} ${Q_UNIT}` : "";
-  return info.isBorder
-    ? `Mínimo na borda da faixa simulada${qTxt}`
-    : `PVBT mínimo desta simulação${qTxt}`;
+  return linearNoteText(info.isBorder, info.qOpt != null ? fmtBblMin(info.qOpt) : null, Q_UNIT);
 }
 
 export function linearSummaryRows(info: LinearOptimumInfo): [string, number | string][] {

@@ -3,7 +3,11 @@ import { saveAs } from "file-saver";
 import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
 import { Curve } from "../redux/storageresults/slice";
 import { buildSimulationTable, buildDesignTable, buildSkinTable } from "../components/columnsConfig";
-import { buildAnalysisRows, ANALYSIS_META, type AnalysisTableInput } from "./analysisTable";
+import {
+  EXPORT_T, NOTE_HEADER, NOT_AVAILABLE, SIM_HEADER, DESIGN_HEADER, SKIN_HEADER,
+  simNote, designTargetNote, designMissedNote, designSheetName, skinNote, analysisHeader,
+} from "./exportText";
+import { buildAnalysisRows, analysisAxis, type AnalysisTableInput } from "./analysisTable";
 import { readValidity } from "./validityWindow";
 import { analyzeLinearOptimum, isExperimentalCurve, linearNote, linearSummaryRows } from "./linearExport";
 
@@ -18,19 +22,13 @@ function buildMetadataRows(curve: Curve): (string | number)[][] {
     ['Porosity', curve.porosity],
   ];
 
+  // curve.temperature is stored in Celsius for linear runs and Kelvin for radial ones (an
+  // existing, pre-Celsius-conversion difference in how the two regimes keep this field);
+  // the magnitude check below disambiguates it. Only the Celsius value is shown.
   const rawTemp = curve.temperature;
   if (rawTemp != null) {
-    let tempC: number;
-    let tempK: number;
-    if (rawTemp < 100) {
-      tempC = rawTemp;
-      tempK = Number((rawTemp + 273.15).toFixed(2));
-    } else {
-      tempK = rawTemp;
-      tempC = Number((rawTemp - 273.15).toFixed(2));
-    }
+    const tempC = rawTemp < 100 ? rawTemp : Number((rawTemp - 273.15).toFixed(2));
     rows.push(['Temperature (°C)', tempC]);
-    rows.push(['Temperature (K)', tempK]);
   }
 
   const qPoints = (curve.flowratePoints || []).filter((v) => typeof v === 'number' && !isNaN(v));
@@ -63,7 +61,7 @@ function buildMetadataRows(curve: Curve): (string | number)[][] {
 }
 
 export const buildVerticalTableSheet = (curve: Curve) => {
-  const { columns, rows, isHighlighted } = buildSimulationTable(curve);
+  const { columns, rows, isHighlighted } = buildSimulationTable(curve, EXPORT_T);
 
   const metadataRows = buildMetadataRows(curve);
   const headerRow = columns.map((c) => c.label + (c.unit ? ` (${c.unit})` : ""));
@@ -71,7 +69,7 @@ export const buildVerticalTableSheet = (curve: Curve) => {
   const hasOptimum = curve.flowRegime !== 'radial' && !isExperimentalCurve(curve);
   const optInfo = hasOptimum ? analyzeLinearOptimum(curve) : null;
   const optRows: (string | number)[][] = optInfo ? linearSummaryRows(optInfo) : [];
-  if (optInfo) headerRow.push('Nota');
+  if (optInfo) headerRow.push(NOTE_HEADER);
 
   const dataRows = rows.map((row, i) => {
     const cells: (string | number)[] = columns.map((c) => {
@@ -412,10 +410,8 @@ function saveWorkbook(wb: XLSX.WorkBook, filename: string) {
   saveAs(blob, filename);
 }
 
-const SIM_HEADER = ["q0 [gal/(ft.min)]", "V_A [gal/ft]", "iv [m/s]", "wv [m/s]", "dv [m/s]", "1/Da", "tbt [s]", "Nota"];
-
 function createSimulationSheet(curve: Curve) {
-  const { rows } = buildSimulationTable(curve);
+  const { rows } = buildSimulationTable(curve, EXPORT_T);
 
   let minIdx = -1;
   let minV = Infinity;
@@ -432,18 +428,7 @@ function createSimulationSheet(curve: Curve) {
 
   const sheetAoA: (string | number | null)[][] = [SIM_HEADER];
   rows.forEach((r, i) => {
-    let note = "";
-    if (i === minIdx) {
-      if (isBorder) {
-        note = qOptStr != null
-          ? `Mínimo na borda da faixa simulada; q_opt = ${qOptStr} gal/(ft·min)`
-          : `Mínimo na borda da faixa simulada`;
-      } else {
-        note = qOptStr != null
-          ? `V_A mínimo desta simulação; q_opt = ${qOptStr} gal/(ft·min)`
-          : `V_A mínimo desta simulação`;
-      }
-    }
+    const note = i === minIdx ? simNote(isBorder, qOptStr) : "";
     sheetAoA.push([r.q0 ?? null, r.V_A ?? null, r.iv ?? null, r.wv ?? null, r.dv ?? null, r.invDa ?? null, r.tbt ?? null, note]);
   });
 
@@ -478,18 +463,9 @@ export const exportRadialSimulationAll = (curves: Curve[], simulationId?: string
   saveWorkbook(wb, `PVBtCalc_Radial_${simulationId || '---'}_Simulation_${dateStr}.xlsx`);
 };
 
-const DESIGN_HEADER = ["L [ft]", "q_opt [gal/(ft.min)]", "V_opt [gal/ft]", "tbt [min]", "Temperatura [K]", "Nota"];
-
 function fmtTarget(t: number): string {
   if (Number.isInteger(t)) return String(t);
   return t.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-}
-
-function joinPt(items: string[]): string {
-  if (items.length === 0) return '';
-  if (items.length === 1) return items[0];
-  if (items.length === 2) return `${items[0]} e ${items[1]}`;
-  return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
 }
 
 function appendDesignPlotSheets(
@@ -498,25 +474,26 @@ function appendDesignPlotSheets(
   payzoneThicknessFt: number | null | undefined,
   targets: (number | null | undefined)[] | null | undefined
 ) {
-  const { rows } = buildDesignTable(designPlotData, payzoneThicknessFt);
+  const { rows } = buildDesignTable(designPlotData, payzoneThicknessFt, EXPORT_T);
   if (rows.length === 0) return;
 
   const cleanTargets = (targets || []).filter((t): t is number => t != null && Number.isFinite(t));
 
   const byTemp = new Map<number, typeof rows>();
   for (const r of rows) {
-    const key = r.temperatura;
+    const key = r.temperature;
     if (!byTemp.has(key)) byTemp.set(key, []);
     byTemp.get(key)!.push(r);
   }
 
   const used = new Set<string>();
+  // r.temperature (buildDesignTable's row field) is already Celsius -- see columnsConfig.ts.
   const temps = Array.from(byTemp.keys()).sort((a, b) => a - b);
-  for (const tempK of temps) {
-    const tempRows = byTemp.get(tempK)!.slice().sort((a, b) => a.comprimento - b.comprimento);
-    const lastComprimento = tempRows[tempRows.length - 1].comprimento;
+  for (const tempC of temps) {
+    const tempRows = byTemp.get(tempC)!.slice().sort((a, b) => a.wormhole_length - b.wormhole_length);
+    const lastComprimento = tempRows[tempRows.length - 1].wormhole_length;
     const halfStep = tempRows.length > 1
-      ? (lastComprimento - tempRows[0].comprimento) / (tempRows.length - 1) / 2
+      ? (lastComprimento - tempRows[0].wormhole_length) / (tempRows.length - 1) / 2
       : Infinity;
 
     const notesByRow = new Map<number, string[]>();
@@ -527,7 +504,7 @@ function appendDesignPlotSheets(
       let idx = -1;
       let minDiff = Infinity;
       tempRows.forEach((r, i) => {
-        const diff = Math.abs(r.comprimento - t);
+        const diff = Math.abs(r.wormhole_length - t);
         if (diff < minDiff) {
           minDiff = diff;
           idx = i;
@@ -536,7 +513,7 @@ function appendDesignPlotSheets(
       if (idx >= 0 && minDiff <= halfStep) {
         highlightRows.add(idx);
         const list = notesByRow.get(idx) ?? [];
-        list.push(`Alvo ${fmtTarget(t)} ft (L = ${tempRows[idx].comprimento.toFixed(2)} ft)`);
+        list.push(designTargetNote(fmtTarget(t), tempRows[idx].wormhole_length));
         notesByRow.set(idx, list);
       } else if (t > lastComprimento) {
         missedTargets.push(t);
@@ -546,21 +523,19 @@ function appendDesignPlotSheets(
     if (missedTargets.length > 0) {
       const lastIdx = tempRows.length - 1;
       highlightRows.add(lastIdx);
-      const label = missedTargets.length === 1 ? 'Alvo' : 'Alvos';
-      const verb = missedTargets.length === 1 ? 'não atingido' : 'não atingidos';
       const list = notesByRow.get(lastIdx) ?? [];
-      list.push(`${label} ${joinPt(missedTargets.map(fmtTarget))} ft ${verb} — tabela termina em ${lastComprimento.toFixed(2)} ft (limite 1000 gal/ft)`);
+      list.push(designMissedNote(missedTargets.map(fmtTarget), lastComprimento));
       notesByRow.set(lastIdx, list);
     }
 
     const sheetAoA: (string | number | null)[][] = [DESIGN_HEADER];
     tempRows.forEach((r, i) => {
       const note = (notesByRow.get(i) ?? []).join('; ');
-      sheetAoA.push([r.comprimento ?? null, r.q_opt ?? null, r.V_opt ?? null, r.tbt_min ?? null, r.temperatura ?? null, note]);
+      sheetAoA.push([r.wormhole_length ?? null, r.q_opt ?? null, r.V_opt ?? null, r.tbt_min ?? null, r.temperature ?? null, note]);
     });
 
     const ws = finalizeSheet(sheetAoA, highlightRows, [0, 4]);
-    const name = dedupeSheetName(sanitizeSheetName(`Design ${Math.round(tempK)} K`), used);
+    const name = dedupeSheetName(sanitizeSheetName(designSheetName(tempC)), used);
     XLSX.utils.book_append_sheet(wb, ws, name);
   }
 }
@@ -578,10 +553,10 @@ export const exportRadialDesignPlotTable = (
 
 export const exportRadialAnalysisTable = (result: AnalysisTableInput | null | undefined) => {
   if (!result) return;
-  const rows = buildAnalysisRows(result, 'pt');
+  const rows = buildAnalysisRows(result, EXPORT_T);
   if (rows.length === 0) return;
-  const [label, unit] = ANALYSIS_META[result.sweepParam] ?? [result.sweepParam, ''];
-  const header = [`${label} [${unit}]`, "q_opt [gal/(ft.min)]", "V_opt [gal/ft]", "tbt [min]", "Nota"];
+  const { label } = analysisAxis(result.sweepParam, EXPORT_T);
+  const header = analysisHeader(result.sweepParam);
   const aoa: (string | number | null)[][] = [header, ...rows.map((r) => [r.x, r.q_opt, r.v_opt, r.tbt_min, r.nota])];
   const highlight = new Set<number>();
   rows.forEach((r, i) => { if (r.nota) highlight.add(i); });
@@ -591,14 +566,12 @@ export const exportRadialAnalysisTable = (result: AnalysisTableInput | null | un
   saveWorkbook(wb, `PVBtCalc_Radial_Analysis_${dateStr}.xlsx`);
 };
 
-const SKIN_HEADER = ["V_A [gal/ft]", "skin", "comprimento [ft]", "Nota"];
-
 function appendSkinSheets(
   wb: XLSX.WorkBook,
   skinEvolutionData: Record<string, { x: number; y: number; l_ft: number }[]>,
   targetSkin: number | null | undefined
 ) {
-  const { rows } = buildSkinTable(skinEvolutionData);
+  const { rows } = buildSkinTable(skinEvolutionData, EXPORT_T);
   if (rows.length === 0) return;
 
   const byQ = new Map<number, typeof rows>();
@@ -626,10 +599,8 @@ function appendSkinSheets(
 
     const sheetAoA: (string | number | null)[][] = [SKIN_HEADER];
     qRows.forEach((r, i) => {
-      const note = i === targetIdx
-        ? (targetSkin != null ? `Skin alvo (mais próximo de ${targetSkin})` : "Skin final")
-        : "";
-      sheetAoA.push([r.V_A ?? null, r.skin ?? null, r.comprimento ?? null, note]);
+      const note = i === targetIdx ? skinNote(targetSkin) : "";
+      sheetAoA.push([r.V_A ?? null, r.skin ?? null, r.wormhole_length ?? null, note]);
     });
 
     const highlightRows = new Set<number>([targetIdx]);
@@ -664,9 +635,7 @@ function buildRadialInputsRows(curves: Curve[], radialState: any, simulationId: 
 
   const rawTemp = baseCurve.temperature != null ? Number(baseCurve.temperature) : null;
   if (rawTemp != null && Number.isFinite(rawTemp)) {
-    const tempK = rawTemp >= 100 ? rawTemp : Number((rawTemp + 273.15).toFixed(2));
     const tempC = rawTemp >= 100 ? Number((rawTemp - 273.15).toFixed(2)) : rawTemp;
-    rows.push(['Temperature (K)', tempK]);
     rows.push(['Temperature (°C)', tempC]);
   }
 
@@ -696,7 +665,7 @@ function buildRadialInputsRows(curves: Curve[], radialState: any, simulationId: 
   if (fVal == null && import.meta.env.DEV) {
     console.warn('export.tsx: Flowing Fraction (f) indisponivel para esta curva -- baseCurve.flowingFraction e null/undefined (curva salva antes desta chave existir?)');
   }
-  rows.push(['Flowing Fraction (f)', fVal != null ? asNumberCell(fVal) : 'não disponível']);
+  rows.push(['Flowing Fraction (f)', fVal != null ? asNumberCell(fVal) : NOT_AVAILABLE]);
 
   return rows;
 }

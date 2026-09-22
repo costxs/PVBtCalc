@@ -1,4 +1,5 @@
 import type { Curve } from "../redux/storageresults/slice";
+import { requestFailed } from "./exportText";
 import { saveBlob } from "./directoryExport";
 import { API_BASE } from "../services/api";
 import { buildLinearExportPayload } from "./linearExport";
@@ -17,7 +18,7 @@ export async function exportLinearWorkbookServer(
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`/export/linear falhou (HTTP ${res.status}): ${detail.slice(0, 300)}`);
+    throw new Error(requestFailed("/export/linear", res.status, detail));
   }
   const blob = await res.blob();
   const cd = res.headers.get("Content-Disposition") || "";

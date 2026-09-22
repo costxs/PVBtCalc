@@ -20,7 +20,7 @@ export function openSnapshotIntoRedux(dispatch: (action: any) => void, snapshot:
       concentration: snapshot.concentration,
       porosity: snapshot.porosity,
     }));
-    dispatch(setVisibleChart("design"));
+    dispatch(setVisibleChart("A"));
   } else {
     dispatch(setFlowRegime("linear"));
     dispatch(setVisibleChart("A"));

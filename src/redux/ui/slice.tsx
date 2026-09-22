@@ -8,22 +8,17 @@ interface UiState {
 }
 
 const LANGUAGE_STORAGE_KEY = "pvbtcalc.language";
-const FLOW_REGIME_STORAGE_KEY = "radialFlowRegime";
 
 function loadPersistedLanguage(): Language {
-  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-  if (stored === "pt" || stored === "en") return stored;
+  // Default is English; a stored choice wins. Never inferred from navigator.language.
+  try {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (stored === "pt" || stored === "en") return stored;
+  } catch { /* storage blocked: use the default */ }
   return "en";
 }
 
 function getInitialVisibleChart(): string {
-  try {
-    const storedRegime = localStorage.getItem(FLOW_REGIME_STORAGE_KEY);
-    if (storedRegime === "radial") {
-      return "design";
-    }
-  } catch {
-  }
   return "A";
 }
 
@@ -41,7 +36,7 @@ const uiSlice = createSlice({
     },
     setLanguage: (state, action: PayloadAction<Language>) => {
       state.language = action.payload;
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, action.payload);
+      try { localStorage.setItem(LANGUAGE_STORAGE_KEY, action.payload); } catch { /* storage blocked: the choice lasts for this session */ }
     },
   },
 });

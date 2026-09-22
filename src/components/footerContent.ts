@@ -84,13 +84,13 @@ export const footerContentEn: FooterContentData = {
     title: 'Related Publication',
     citation:
       'CARDOSO, Luiz Guilherme Valente et al. Desenvolvimento de Um Software In House para Análise do Pore Volume To Breakthrough (PVBt) na Estimulação Ácida em Carbonatos. In: ANAIS DO 11º CONGRESSO BRASILEIRO DE PETRÓLEO E GáS, 2022, Belém. Anais eletrônicos, Galoá, 2022.',
-    availableIn: 'Avaliable in: ',
+    availableIn: 'Available in: ',
     linkText: 'Anais do 11º Congresso Brasileiro de Petróleo e Gás',
     url: 'https://proceedings.science/pdpetro-2022/trabalhos/desenvolvimento-de-um-software-in-house-para-analise-do-pore-volume-to-breakthro?lang=pt-br',
   },
   models: {
     title: 'Models',
-    acidCorrelationLabel: 'Acid corelation: ',
+    acidCorrelationLabel: 'Acid correlation: ',
     acidCorrelationRef: "Perry, R. H. (1934). Perry's Chemical Engineers' Handbook.",
     pvbtModelLabel: 'PVBt Model: ',
     pvbtModelRef:

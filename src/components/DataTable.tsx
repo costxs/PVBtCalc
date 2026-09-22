@@ -1,4 +1,6 @@
 import { ReactNode } from "react";
+import { useT } from "../i18n";
+import { localizeNumberText } from "../tools/parseDecimal";
 
 export interface ColumnConfig {
   key: string;
@@ -26,6 +28,7 @@ const defaultFormat = (val: any): string => {
 };
 
 export default function DataTable({ columns, rows, markerColumnKey, renderMarker, isHighlighted }: DataTableProps) {
+  const { lang } = useT();
   if (import.meta.env.DEV) {
     const seen = new Set<string>();
     const dups = [...new Set(columns.map((c) => c.key).filter((k) => seen.size === seen.add(k).size))];
@@ -50,7 +53,7 @@ export default function DataTable({ columns, rows, markerColumnKey, renderMarker
             <tr key={rowIndex} style={highlighted ? { backgroundColor: "var(--color-bg)", fontWeight: "bold" } : {}}>
               {columns.map((col) => {
                 const raw = row[col.key];
-                const formatted = col.format ? col.format(raw) : defaultFormat(raw);
+                const formatted = localizeNumberText(col.format ? col.format(raw) : defaultFormat(raw), lang);
                 return (
                   <td key={col.key} title={col.description} style={{ fontFamily: "var(--font-heading)", fontSize: "15px", color: highlighted ? "var(--color-accent-800)" : "var(--color-accent-700)", whiteSpace: "nowrap", padding: "10px 8px", textAlign: "center" }}>
                     {markerColumnKey === col.key && renderMarker?.(row, rowIndex)}

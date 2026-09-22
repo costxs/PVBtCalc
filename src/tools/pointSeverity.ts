@@ -1,3 +1,5 @@
+import type { TFn } from "../i18n";
+
 export type PointSeverity = "error" | "warn" | "none";
 
 export const SEVERITY_COLORS = { error: "#c0392b", warn: "#DF831A" } as const;
@@ -9,16 +11,17 @@ export interface PointSeverityResult {
 
 export function pointSeverity(
   status: string | undefined,
-  withinValidity: boolean | undefined
+  withinValidity: boolean | undefined,
+  t: TFn
 ): PointSeverityResult {
   if (status === undefined) return { level: "none", tooltip: "" };
 
   const reasons: string[] = [];
-  if (status !== "ok") reasons.push(`resultado inválido (${status})`);
-  if (withinValidity === false) reasons.push("vazão fora da janela validada pelo artigo");
+  if (status !== "ok") reasons.push(t("severity.invalid_result", { status }));
+  if (withinValidity === false) reasons.push(t("severity.outside_window"));
 
   const level: PointSeverity =
     status !== "ok" ? "error" : withinValidity === false ? "warn" : "none";
 
-  return { level, tooltip: reasons.join(" e ") };
+  return { level, tooltip: reasons.join(t("severity.and")) };
 }

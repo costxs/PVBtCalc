@@ -11,7 +11,8 @@ const describeError = (status: number, body: any): string => {
   if (Array.isArray(d) && d.length) {
     return d.map((e: any) => `${(e.loc ?? []).slice(1).join(".") || "request"}: ${String(e.msg ?? e).replace(/^Value error, /, "")}`).join("; ");
   }
-  return `Analysis request failed (HTTP ${status})`;
+  // dictionary key + params, decoded by translateIfKey where the error is shown
+  return `error.request_failed?${JSON.stringify({ status })}`;
 };
 
 const postJson = async (path: string, token: string, body: unknown, dispatch: any) => {
@@ -23,7 +24,7 @@ const postJson = async (path: string, token: string, body: unknown, dispatch: an
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error("Could not reach the server.");
+    throw new Error("error.unreachable");
   }
   handleAuthError(response, dispatch);
   let data: any = null;
@@ -172,7 +173,7 @@ const resultSlice = createSlice({
             // com legenda "undefined": vira erro explicito.
             if (!p || typeof p.analyzed !== "string" || !Array.isArray(p.analiticalpoints)) {
                 state.status = "error";
-                state.error = "The server returned an unexpected response.";
+                state.error = "error.unexpected_response"; // dictionary key, translated where shown
                 return;
             }
             state.status = "ok";
@@ -188,7 +189,7 @@ const resultSlice = createSlice({
         })
         .addCase(fetchAnalitical.rejected, (state, action)=>{
             state.status = "error";
-            state.error = (action.payload as string) ?? action.error.message ?? "Analysis failed.";
+            state.error = (action.payload as string) ?? action.error.message ?? "error.analysis_failed";
         })
         .addCase(fetchRadialOptimumSweep.pending, (state) => {
             state.status = "loading";
@@ -202,7 +203,7 @@ const resultSlice = createSlice({
         })
         .addCase(fetchRadialOptimumSweep.rejected, (state, action) => {
             state.status = "error";
-            state.error = (action.payload as string) ?? action.error.message ?? "Analysis failed.";
+            state.error = (action.payload as string) ?? action.error.message ?? "error.analysis_failed";
         });
   },
 });

@@ -51,7 +51,7 @@ describe("linearExport — otimo exato vs. menor PVBT varrido", () => {
     expect(info.qOpt).toBe(META.q_opt_cm3_min);
     expect(info.pvbtAtQOpt).toBe(META.pvbt_at_q_opt);
     const note = linearNote(info, info.minIdx);
-    expect(note).toBe(`PVBT mínimo desta simulação; q_opt = ${fmtBblMin(META.q_opt_cm3_min)} cm³/min`);
+    expect(note).toBe(`Minimum PVBT of this simulation; q_opt = ${fmtBblMin(META.q_opt_cm3_min)} cm³/min`);
     expect(note).toContain("1.73");
   });
 
@@ -74,16 +74,16 @@ describe("linearExport — otimo exato vs. menor PVBT varrido", () => {
     const info = analyzeLinearOptimum(c);
     expect(info.isBorder).toBe(true);
     const note = linearNote(info, info.minIdx);
-    expect(note).toBe("Mínimo na borda da faixa simulada; q_opt = 1.71 cm³/min");
-    expect(note).not.toContain("PVBT mínimo desta simulação");
+    expect(note).toBe("Minimum at the edge of the simulated range; q_opt = 1.71 cm³/min");
+    expect(note).not.toContain("Minimum PVBT of this simulation");
     expect(linearNote(info, 3)).toBe("");
   });
 
   it("sem metadata: sem q_opt inventado", () => {
     const info = analyzeLinearOptimum(modelCurve({ metadata: null }));
     expect(info.qOpt).toBeNull();
-    expect(linearNote(info, info.minIdx)).toBe("PVBT mínimo desta simulação");
-    expect(linearSummaryRows(info)[0][1]).toBe("não disponível");
+    expect(linearNote(info, info.minIdx)).toBe("Minimum PVBT of this simulation");
+    expect(linearSummaryRows(info)[0][1]).toBe("not available");
   });
 
   it("curva salva antes de pvbt_at_q_opt existir: q_opt ok, PVBT(q_opt) nao disponivel", () => {
@@ -107,18 +107,18 @@ describe("linearExport — experimentais nao sao curvas de modelo", () => {
 
   it("dados-somente: experimental mantem o layout antigo (sem Nota, sem resumo)", () => {
     const text = cellText(buildVerticalTableSheet(experimentalCurve()));
-    expect(text).not.toContain("Nota");
+    expect(text).not.toContain("Note");
     expect(text).not.toContain("OPTIMUM SUMMARY");
   });
 });
 
-describe("export somente-tabelas linear — resumo + Nota", () => {
-  it("escreve OPTIMUM SUMMARY, coluna Nota e a nota na linha do minimo", () => {
+describe("export somente-tabelas linear — summary + Note", () => {
+  it("escreve OPTIMUM SUMMARY, Note column e a nota na linha do minimo", () => {
     const ws = buildVerticalTableSheet(modelCurve());
     const text = cellText(ws);
     expect(text).toContain("OPTIMUM SUMMARY");
-    expect(text).toContain("Nota");
-    expect(text).toContain(`PVBT mínimo desta simulação; q_opt = 1.73 cm³/min`);
+    expect(text).toContain("Note");
+    expect(text).toContain(`Minimum PVBT of this simulation; q_opt = 1.73 cm³/min`);
 
     const labelAddr = Object.keys(ws).find((k) => (ws as any)[k].v === "q_opt [cm³/min]")!;
     const valAddr = "B" + labelAddr.slice(1);
@@ -131,7 +131,7 @@ describe("export somente-tabelas linear — resumo + Nota", () => {
       intersticialVelocity: [1, 2, 3], iDa: [1, 2, 3], wormholeVelocity: [1, 2, 3],
       volumeToBt: [1, 2, 3], timeToBt: [1, 2, 3], darcyVelocity: [1, 2, 3],
     }));
-    expect(cellText(ws)).toContain("Mínimo na borda da faixa simulada; q_opt = 1.73 cm³/min");
+    expect(cellText(ws)).toContain("Minimum at the edge of the simulated range; q_opt = 1.73 cm³/min");
   });
 
   it("radial nao ganha bloco de otimo linear", () => {

@@ -1,3 +1,4 @@
+import type { TKey } from "../i18n";
 
 export function parseAxisLimitInput(raw: string): number | null {
   const s = (raw ?? '').trim();
@@ -31,7 +32,7 @@ export function parseAxisLimitInput(raw: string): number | null {
 export interface AxisLimitResult {
   min?: number;
   max?: number;
-  error?: string;
+  error?: TKey; // dictionary key, so it re-translates with the language
 }
 
 export function resolveAxisLimit(rawMin: string, rawMax: string, isLog: boolean): AxisLimitResult {
@@ -40,11 +41,11 @@ export function resolveAxisLimit(rawMin: string, rawMax: string, isLog: boolean)
   const min = parseAxisLimitInput(rawMin);
   const max = parseAxisLimitInput(rawMax);
 
-  if (minRaw !== '' && min === null) return { error: 'Valor de Mín inválido.' };
-  if (maxRaw !== '' && max === null) return { error: 'Valor de Máx inválido.' };
-  if (isLog && min != null && min <= 0) return { error: 'Em escala log, Mín deve ser maior que 0.' };
-  if (isLog && max != null && max <= 0) return { error: 'Em escala log, Máx deve ser maior que 0.' };
-  if (min != null && max != null && max <= min) return { error: 'Máx deve ser maior que Mín.' };
+  if (minRaw !== '' && min === null) return { error: 'axis.invalid_min' };
+  if (maxRaw !== '' && max === null) return { error: 'axis.invalid_max' };
+  if (isLog && min != null && min <= 0) return { error: 'axis.log_min_positive' };
+  if (isLog && max != null && max <= 0) return { error: 'axis.log_max_positive' };
+  if (min != null && max != null && max <= min) return { error: 'axis.max_gt_min' };
 
   return { min: min ?? undefined, max: max ?? undefined };
 }

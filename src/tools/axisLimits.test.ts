@@ -65,13 +65,13 @@ describe("resolveAxisLimit", () => {
   });
 
   it("rejects max <= min", () => {
-    expect(resolveAxisLimit("100", "10", false).error).toMatch(/Máx deve ser maior/);
-    expect(resolveAxisLimit("10", "10", false).error).toMatch(/Máx deve ser maior/);
+    expect(resolveAxisLimit("100", "10", false).error).toBe("axis.max_gt_min");
+    expect(resolveAxisLimit("10", "10", false).error).toBe("axis.max_gt_min");
   });
 
   it("rejects min <= 0 on a log axis", () => {
-    expect(resolveAxisLimit("0", "1000", true).error).toMatch(/Mín deve ser maior que 0/);
-    expect(resolveAxisLimit("-5", "1000", true).error).toMatch(/Mín deve ser maior que 0/);
+    expect(resolveAxisLimit("0", "1000", true).error).toBe("axis.log_min_positive");
+    expect(resolveAxisLimit("-5", "1000", true).error).toBe("axis.log_min_positive");
   });
 
   it("allows min <= 0 on a linear axis", () => {
@@ -80,8 +80,8 @@ describe("resolveAxisLimit", () => {
   });
 
   it("rejects unparseable values", () => {
-    expect(resolveAxisLimit("abc", "10", false).error).toMatch(/Mín inválido/);
-    expect(resolveAxisLimit("10", "abc", false).error).toMatch(/Máx inválido/);
+    expect(resolveAxisLimit("abc", "10", false).error).toBe("axis.invalid_min");
+    expect(resolveAxisLimit("10", "abc", false).error).toBe("axis.invalid_max");
   });
 
   it("matches the requested verification scenario (radial Simulation Y, log axis)", () => {

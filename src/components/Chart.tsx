@@ -6,7 +6,8 @@ import { motion, AnimatePresence, useReducedMotion, LayoutGroup } from "motion/r
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
 import { CurveAnalysis } from "../redux/analysisresults/slice";
 import { fetchDesignPlot } from "../redux/radial/slice";
-import { T_CALIBRATED_K } from "../tools/sweepValidation";
+import { roundCelsius, T_CALIBRATED_C } from "../tools/temperature";
+import { formatSweepX } from "../tools/analysisTable";
 import { getOptimalPointsForDesign } from "../tools/chartDataUtils";
 import DesignPlotReader from "./DesignPlotReader";
 import { Chip, ChipRow, SegmentedControl, toggleInSet } from "./ChartControls";
@@ -15,6 +16,8 @@ import { analyzeLinearOptimum, linearOptimumMarker } from "../tools/linearExport
 import { resolveAxisLimit } from "../tools/axisLimits";
 import { SEVERITY_COLORS } from "../tools/pointSeverity";
 import PhysicalLimitNote from "./PhysicalLimitNote";
+import { useT, translateIfKey } from "../i18n";
+import { numberLocale } from "../tools/parseDecimal";
 import { setVisibleChart } from "../redux/ui/slice";
 import { selectLinearChartCurves, selectRadialChartCurves, toValidityAwareCurves } from "../tools/chartCurveSelectors";
 
@@ -79,6 +82,28 @@ const spansOrders = (values: (number | null | undefined)[]): boolean => {
   return ratio >= Y_LOG_AUTO_RATIO;
 };
 
+const RESET_ZOOM_ICON = 'path://M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z';
+
+// One toolbox for every chart; corner pins it to the top-right (Simulation and Skin charts).
+function resetZoomToolbox(chartRef: { current: unknown }, title: string, corner: boolean) {
+  return {
+    ...(corner ? { top: 10, right: 10 } : {}),
+    feature: {
+      dataZoom: { yAxisIndex: 'none' },
+      restore: {},
+      myResetZoom: {
+        show: true,
+        title,
+        icon: RESET_ZOOM_ICON,
+        onclick: () => {
+          const chart = chartRef.current as any;
+          if (chart) chart.getEchartsInstance().dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
+        },
+      },
+    },
+  };
+}
+
 const ChartComponent = () => {
   const dispatch = useDispatch();
   const { curves } = useSelector((state: RootState) => state.resultCurves);
@@ -91,7 +116,7 @@ const ChartComponent = () => {
     ? curves.filter((c) => c.flowRegime === 'radial' && c.id.startsWith(`${currentSimulationId} · `))
     : [];
   const visibleChart = useSelector((state: RootState) => state.ui.visibleChart);
-  const isPt = useSelector((state: RootState) => state.ui.language) === 'pt';
+  const { t, lang } = useT();
 
   const chartRefA = useRef(null);
   const chartRefB = useRef(null);
@@ -169,6 +194,18 @@ const ChartComponent = () => {
     ? collectValidityOffenders(toValidityAwareCurves(linearChartCurves))
     : { count: 0, curvesAffected: 0, worst: null };
 
+  const renderValidityText = (v: typeof radialValidity) => v.worst && (
+    <>
+      <strong>{t(v.count === 1 ? 'chart.validity_points_one' : 'chart.validity_points_many', { count: v.count })}</strong>
+      {' '}{t(v.curvesAffected === 1 ? 'chart.validity_across_one' : 'chart.validity_across_many', { count: v.curvesAffected })}
+      {' '}{t('chart.validity_outside')}{' '}
+      {t('chart.validity_worst_case')} <strong>{fmtBblMin(v.worst.flowrate)} {v.worst.unit}</strong>
+      {' '}{t('chart.validity_on_curve', { label: v.worst.label })} — {fmtRatio(v.worst.ratio)}×{' '}
+      {t(v.worst.boundary === 'upper' ? 'chart.validity_above' : 'chart.validity_below')}
+      {' '}({fmtBblMin(v.worst.limit)} {v.worst.unit}).
+    </>
+  );
+
   const [xdefinedLimit, setxDefinedLimit] = useState(false);
   const [ydefinedLimit, setyDefinedLimit] = useState(false);
   const [xLimit, setxLimit] = useState(['', '']);
@@ -200,19 +237,15 @@ const ChartComponent = () => {
   useEffect(() => {
     if (prevFlowRegimeRef.current !== flowRegime) {
       if (flowRegime === 'radial') {
-        dispatch(setVisibleChart('design'));
+        if (visibleChart !== 'A' && visibleChart !== 'design' && visibleChart !== 'B' && visibleChart !== 'skin') {
+          dispatch(setVisibleChart('A'));
+        }
       } else if (flowRegime === 'linear' && (visibleChart === 'design' || visibleChart === 'skin')) {
         dispatch(setVisibleChart('A'));
       }
       prevFlowRegimeRef.current = flowRegime;
     }
   }, [flowRegime, visibleChart, dispatch]);
-
-  useEffect(() => {
-    if (flowRegime === 'radial' && visibleChart === 'A') {
-      dispatch(setVisibleChart('design'));
-    }
-  }, []);
 
   useEffect(() => {
     if (visibleChart === 'design' && flowRegime === 'radial' && radialProcessed) {
@@ -250,33 +283,33 @@ const ChartComponent = () => {
   const getXAxisName = (param?: string) => {
     switch (param) {
       case 'temperature':
-        return "System Temperature (°C)";
+        return t("chart.ax_system_temp_c");
       case 'porosity':
       case 'core porosity':
-        return "Core Porosity (fraction)";
+        return t("chart.ax_core_porosity");
       case 'acid_concentration':
       case 'acid concentration':
-        return "Acid Concentration (w/w)";
+        return t("chart.ax_acid_concentration");
       case 'core_length':
       case 'core length':
-        return "Core Length (in)";
+        return t("chart.ax_core_length");
       case 'wellbore_size':
       case 'wellbore size':
       case 'core_diameter':
       case 'core diameter':
-        return flowRegime === 'radial' ? "Wellbore Size (in)" : "Core Diameter (in)";
+        return flowRegime === 'radial' ? t("chart.ax_wellbore_size") : t("chart.ax_core_diameter");
       default:
-        return analyse.id ? analyse.id : "Sweep Parameter";
+        return analyse.id ? analyse.id : t("chart.ax_sweep_parameter");
     }
   };
 
   const getRadialSweepAxisName = (param: string) => {
     switch (param) {
-      case 'temperature': return "System Temperature (K)";
-      case 'porosity': return "Porosity (fraction)";
-      case 'acid_concentration': return "Acid Concentration (w/w)";
-      case 'wellbore_diameter': return "Wellbore Diameter (in)";
-      case 'payzone_thickness': return "Payzone Thickness (ft)";
+      case 'temperature': return t("chart.ax_system_temp_c");
+      case 'porosity': return t("chart.ax_porosity");
+      case 'acid_concentration': return t("chart.ax_acid_concentration");
+      case 'wellbore_diameter': return t("chart.ax_wellbore_diameter");
+      case 'payzone_thickness': return t("chart.ax_payzone_thickness");
       default: return param;
     }
   };
@@ -288,16 +321,18 @@ const ChartComponent = () => {
       ? (analyse.radial?.sweepValues.length ?? 0) > 0
       : analyse.analiticalpoints.length > 0
   );
+  const optPathName = t('chart.series_opt_path');
+
   const analysisMessage: string | null = analysisPlottable ? null
-    : analyse.status === 'loading' && analysisForCurrentRegime ? 'Calculating…'
-    : analyse.status === 'error' && analysisForCurrentRegime ? `Analysis failed: ${analyse.error ?? 'unknown error'}`
+    : analyse.status === 'loading' && analysisForCurrentRegime ? t('chart.msg_calculating')
+    : analyse.status === 'error' && analysisForCurrentRegime ? t('chart.msg_failed', { error: analyse.error ? translateIfKey(t, analyse.error) : t('chart.unknown_error') })
     : analyse.status === 'ok' && analysisForCurrentRegime
       ? (flowRegime === 'radial' && analyse.radial?.hasClippedVolume
-          ? 'Every swept value required more than 1000 gal/ft at the optimum, so no point could be plotted. Try a shorter target or a different range.'
-          : 'The calculation returned no points for this range.')
+          ? t('chart.msg_all_clipped')
+          : t('chart.msg_no_points'))
     : analyse.status !== 'idle' && !analysisForCurrentRegime
-      ? `The last analysis was run in ${analyse.regime} mode. Run the Optimum Analysis again for ${flowRegime} mode.`
-    : 'Set a sweep range in Optimum Analysis and press "Plot analysis curve".';
+      ? t('chart.msg_other_regime', { last: t(analyse.regime === 'radial' ? 'chart.regime_radial' : 'chart.regime_linear'), current: t(flowRegime === 'radial' ? 'chart.regime_radial' : 'chart.regime_linear') })
+    : t('chart.msg_idle');
 
   useEffect(() => {
     const isRadial = flowRegime === 'radial';
@@ -310,6 +345,11 @@ const ChartComponent = () => {
 
     if (isRadial && analyse.radial) {
       const r = analyse.radial;
+      // sweepValues is Kelvin whenever the swept parameter is temperature (the backend's
+      // native unit); every other parameter is already in its display unit. formatSweepX is
+      // the SAME function analysisTable.ts uses for the Analysis table's own 'x' column, so
+      // this chart and that table round the identical point identically.
+      const toSweepX = (x: number) => formatSweepX(x, r.sweepParam);
       const xRadial = xdefinedLimit ? resolveAxisLimit(xLimit[0], xLimit[1], false) : {};
       const rateColor = CURVE_PALETTE[0];
       const volColor = CURVE_PALETTE[3];
@@ -336,7 +376,7 @@ const ChartComponent = () => {
         yAxis: [
           {
             type: 'value',
-            name: 'Optimum Injection Rate, gal/(ft·min)',
+            name: t('chart.axis_opt_rate'),
             nameLocation: 'middle',
             nameGap: 55,
             scale: true,
@@ -345,7 +385,7 @@ const ChartComponent = () => {
           {
             type: 'value',
             position: 'right',
-            name: 'Acid Volume @ Optimum Rate, gal/ft',
+            name: t('chart.axis_opt_volume'),
             nameLocation: 'middle',
             nameGap: 55,
             scale: true,
@@ -354,22 +394,22 @@ const ChartComponent = () => {
         ],
         series: [
           {
-            name: 'Optimum rate',
+            name: t('chart.series_opt_rate'),
             type: 'line',
             yAxisIndex: 0,
             showSymbol: true,
             smooth: true,
-            data: r.sweepValues.map((x, i) => [x, r.optimumRate[i]]),
+            data: r.sweepValues.map((x, i) => [toSweepX(x), r.optimumRate[i]]),
             lineStyle: { type: 'solid', width: 2, color: rateColor },
             itemStyle: { color: rateColor }
           },
           {
-            name: 'Acid volume @ optimum',
+            name: t('chart.series_opt_volume'),
             type: 'line',
             yAxisIndex: 1,
             showSymbol: true,
             smooth: true,
-            data: r.sweepValues.map((x, i) => [x, r.optimumVolume[i]]),
+            data: r.sweepValues.map((x, i) => [toSweepX(x), r.optimumVolume[i]]),
             lineStyle: { type: 'dashed', width: 2, color: volColor },
             itemStyle: { color: volColor }
           }
@@ -383,7 +423,7 @@ const ChartComponent = () => {
     const showOptimumMarker = opt;
 
     const analysisSerie = ({
-      name: analyse.id + ' variation',
+      name: `${analyse.id} ${t('chart.series_variation')}`,
       type: "line",
       data: analyse.analiticalpoints.map((x, index) => {
         const yVal = analyse.pvbtPoints?.[index];
@@ -399,10 +439,10 @@ const ChartComponent = () => {
         data: [
           {
             type: "min",
-            name: isPt ? "Mínimo" : "Minimum",
+            name: t("chart.minimum"),
             symbolSize: 30,
             label: {
-              formatter: "optimum: {@[1]}",
+              formatter: `${t('chart.mark_optimum')}: {@[1]}`,
               position: "top",
               color: "#fff",
               backgroundColor: "#24a424",
@@ -452,7 +492,7 @@ const ChartComponent = () => {
       },
       yAxis: {
         z: 10,
-        name: "PVBt (dimensionless)",
+        name: t('chart.axis_pvbt'),
         nameLocation: 'middle',
         nameGap: 45,
         type: yAxisIsLog ? "log" : "value",
@@ -462,7 +502,7 @@ const ChartComponent = () => {
       },
       series: analysisSerie,
     });
-  }, [analyse, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, xLimit, yLimit, grid, flowRegime, sweepParameter, analysisPlottable]);
+  }, [analyse, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, xLimit, yLimit, grid, flowRegime, sweepParameter, analysisPlottable, t, lang]);
 
   useEffect(() => {
     const round4 = (p: [number, number] | null) =>
@@ -596,11 +636,11 @@ const ChartComponent = () => {
           trigger: "axis",
           formatter: (params: TooltipComponentFormatterCallbackParams | TooltipComponentFormatterCallbackParams[]) => {
             const paramArray = Array.isArray(params) ? params : [params];
-            let tooltipContent = `Injection Rate: ${(paramArray[0] as any).axisValue ?? ""}<br/>`;
+            let tooltipContent = `${t('chart.tt_injection_rate', { value: (paramArray[0] as any).axisValue ?? "" })}<br/>`;
             const seen = new Set<string>();
             paramArray.forEach((item) => {
               const it = item as any;
-              if (it.seriesName === "Optimum injection rates path") return;
+              if (it.seriesName === optPathName) return;
               if (it.value == null || it.value[1] == null) return;
               if (seen.has(it.seriesName)) return;
               seen.add(it.seriesName);
@@ -615,7 +655,7 @@ const ChartComponent = () => {
           }
         },
         legend: { show: false },
-        toolbox: { top: 10, right: 10, feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, myResetZoom: { show: true, title: 'Reset Zoom', icon: 'path://M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z', onclick: () => { const chart = (chartRefA.current as any); if (chart) { chart.getEchartsInstance().dispatchAction({ type: 'dataZoom', start: 0, end: 100 }); } } } } },
+        toolbox: resetZoomToolbox(chartRefA, t('chart.reset_zoom'), true),
         dataZoom: [
           { type: 'inside', xAxisIndex: 0 },
           { type: 'slider', xAxisIndex: 0, bottom: 4, height: 14, showDataShadow: false, handleSize: '80%', showDetail: false }
@@ -623,7 +663,7 @@ const ChartComponent = () => {
         grid: { bottom: 60, left: 60, right: 40, top: 80, containLabel: true },
         xAxis: {
           z: 10,
-          name: "Injection Rate, gal/(ft.min)",
+          name: t('chart.axis_inj_rate'),
           nameLocation: 'middle',
           nameGap: 35,
           type: "value",
@@ -633,7 +673,7 @@ const ChartComponent = () => {
         },
         yAxis: {
           z: 10,
-          name: "Acid Volume, gal/ft",
+          name: t('chart.axis_acid_volume'),
           nameLocation: 'middle',
           nameGap: 65,
           type: "log",
@@ -651,13 +691,13 @@ const ChartComponent = () => {
             formatter: (val: number) =>
               Math.abs(val) >= 1e6
                 ? val.toExponential(0).replace('+', '')
-                : new Intl.NumberFormat('pt-BR').format(val)
+                : new Intl.NumberFormat(numberLocale(lang)).format(val)
           }
         },
         series: [
           ...allCurvesSeries,
           ...(simShowOptimumPath ? [{
-            name: "Optimum injection rates path",
+            name: optPathName,
             type: "line",
             data: optimalPoints.length > 1 ? optimalPoints.map(p => [p.optimalFlowrate, p.optimalVolume]) : [],
             lineStyle: { type: 'dashed', width: 3, color: '#4A90E2' },
@@ -667,7 +707,7 @@ const ChartComponent = () => {
             markPoint: optimalPoints.length === 1 ? {
               data: [
                 {
-                  name: "Optimum",
+                  name: t('chart.optimum'),
                   coord: [optimalPoints[0].optimalFlowrate, optimalPoints[0].optimalVolume],
                   symbol: 'pin',
                   symbolSize: 40,
@@ -683,7 +723,7 @@ const ChartComponent = () => {
       const validCurves = linearChartCurves;
       const allOutputModes = validCurves.map((curve) => curve.outputMode).filter(Boolean);
       const allVolume = allOutputModes.length > 0 && allOutputModes.every((m) => m === 'volume');
-      const yAxisName = allVolume ? "Acid Volume (gal)" : "PVBt";
+      const yAxisName = allVolume ? t('chart.axis_acid_volume_gal') : 'PVBt';
 
       const solids: ([number, number] | null)[][] = [];
 
@@ -709,10 +749,10 @@ const ChartComponent = () => {
         if (optMarker) {
           markPointData.push({
             coord: [Number(optMarker.x.toFixed(4)), Number(optMarker.y.toFixed(4))],
-            name: isPt ? "Ótimo" : "Optimum",
+            name: t("chart.optimum"),
             symbolSize: 30,
             label: {
-              formatter: `optimum: ${Number(optMarker.y.toFixed(4))}`,
+              formatter: `${t('chart.mark_optimum')}: ${Number(optMarker.y.toFixed(4))}`,
               position: "top",
               color: "#fff",
               backgroundColor: "#24a424",
@@ -810,7 +850,7 @@ const ChartComponent = () => {
           }
         },
         legend: { orient: 'vertical', right: 10, top: '10%' },
-        toolbox: { feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, myResetZoom: { show: true, title: 'Reset Zoom', icon: 'path://M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z', onclick: () => { const chart = (chartRefA.current as any); if (chart) { chart.getEchartsInstance().dispatchAction({ type: 'dataZoom', start: 0, end: 100 }); } } } } },
+        toolbox: resetZoomToolbox(chartRefA, t('chart.reset_zoom'), false),
         dataZoom: [
           { type: 'inside', xAxisIndex: 0 },
           { type: 'slider', xAxisIndex: 0, bottom: 4, height: 14, showDataShadow: false, handleSize: '80%', showDetail: false }
@@ -818,7 +858,7 @@ const ChartComponent = () => {
         grid: { bottom: 60, left: 50, right: 100, top: 40, containLabel: true },
         xAxis: {
           z: 10,
-          name: "Flowrate",
+          name: t('chart.axis_flowrate'),
           nameLocation: 'middle',
           nameGap: 35,
           type: xisLog ? "log" : "value",
@@ -839,7 +879,7 @@ const ChartComponent = () => {
         series: allCurvesSeries,
       });
     }
-  }, [linearChartCurves, radialChartCurves, radialCurves, flowRegime, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, xLimit, yLimit, grid, simActiveTargets, simShowOptimumPath]);
+  }, [linearChartCurves, radialChartCurves, radialCurves, flowRegime, opt, xisLog, yisLog, xdefinedLimit, ydefinedLimit, xLimit, yLimit, grid, simActiveTargets, simShowOptimumPath, t, lang]);
 
   useEffect(() => {
     if (visibleChart === 'design' && flowRegime === 'radial' && designPlotData?.series?.length) {
@@ -967,7 +1007,7 @@ const ChartComponent = () => {
           const out: any[] = [];
           if (showRate) {
               out.push({
-                  name: `Rate (${s.temperature_k} K)`,
+                  name: t('chart.series_rate_at', { temp: roundCelsius(s.temperature_k, 2) }),
                   type: 'line',
                   smooth: true,
                   showSymbol: false,
@@ -979,7 +1019,7 @@ const ChartComponent = () => {
           }
           if (showVolume) {
               out.push({
-                  name: `Volume (${s.temperature_k} K)`,
+                  name: t('chart.series_volume_at', { temp: roundCelsius(s.temperature_k, 2) }),
                   type: 'line',
                   smooth: true,
                   showSymbol: false,
@@ -1008,7 +1048,7 @@ const ChartComponent = () => {
           formatter: function(params: any) {
             if (!params || !params.length) return "";
             const yValue = params[0].value[1];
-            let html = `<strong>Wormhole Length: ${yValue} ft</strong><br/>`;
+            let html = `<strong>${t('chart.tt_wormhole_length', { value: yValue })}</strong><br/>`;
             params.forEach((param: any) => {
                const colorSpan = `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:${param.color}"></span>`;
                const xValue = param.value[0];
@@ -1026,7 +1066,7 @@ const ChartComponent = () => {
           right: 50, 
           containLabel: true 
         },
-        toolbox: { feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, myResetZoom: { show: true, title: 'Reset Zoom', icon: 'path://M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z', onclick: () => { const chart = (chartRefDesign.current as any); if (chart) { chart.getEchartsInstance().dispatchAction({ type: 'dataZoom', start: 0, end: 100 }); } } } } },
+        toolbox: resetZoomToolbox(chartRefDesign, t('chart.reset_zoom'), false),
         dataZoom: [
           { type: 'inside', xAxisIndex: [0, 1], filterMode: 'none' },
           { type: 'slider', xAxisIndex: [0, 1], bottom: 4, height: 14, showDataShadow: false, handleSize: '80%', showDetail: false, filterMode: 'none' }
@@ -1034,7 +1074,7 @@ const ChartComponent = () => {
         yAxis: [
           {
             type: 'log',
-            name: 'Wormhole Length, ft',
+            name: t('chart.axis_wormhole_length'),
             nameLocation: 'middle',
             nameGap: 65,
             min: yResDesign.min ?? yAxisMin,
@@ -1045,7 +1085,7 @@ const ChartComponent = () => {
           {
             type: 'log',
             position: 'right',
-            name: 'Wormhole Length, ft',
+            name: t('chart.axis_wormhole_length'),
             nameLocation: 'middle',
             nameGap: 65,
             min: yResDesign.min ?? yAxisMin,
@@ -1058,7 +1098,7 @@ const ChartComponent = () => {
         xAxis: [
             {
                 type: 'log',
-                name: 'Optimum Injection Rate, gal/(ft·min)',
+                name: t('chart.axis_opt_rate'),
                 position: 'bottom',
                 nameLocation: 'middle',
                 nameGap: 30,
@@ -1078,7 +1118,7 @@ const ChartComponent = () => {
             },
             {
                 type: 'log',
-                name: 'Acid Volume @ Optimum Rate, gal/ft',
+                name: t('chart.axis_opt_volume'),
                 position: 'top',
                 nameLocation: 'middle',
                 nameGap: 30,
@@ -1101,7 +1141,7 @@ const ChartComponent = () => {
         series: designSeries as any
       });
     }
-  }, [designPlotData, flowRegime, visibleChart, grid, guidedReading, designActiveTemps, designSeriesFilter, xdefinedLimit, ydefinedLimit, xLimit, yLimit]);
+  }, [designPlotData, flowRegime, visibleChart, grid, guidedReading, designActiveTemps, designSeriesFilter, xdefinedLimit, ydefinedLimit, xLimit, yLimit, t, lang]);
 
   useEffect(() => {
     if (visibleChart === 'skin' && skinEvolutionData && Object.keys(skinEvolutionData).length > 0) {
@@ -1123,33 +1163,33 @@ const ChartComponent = () => {
             trigger: 'axis',
             formatter: function (params: any) {
                 if (!params.length) return "";
-                let tooltipText = `Volume: ${params[0].value[0].toFixed(1)} gal/ft<br/>`;
+                let tooltipText = `${t('chart.tt_volume', { value: params[0].value[0].toFixed(1) })}<br/>`;
                 params.forEach((param: any) => {
-                    tooltipText += `${param.seriesName}: Skin ${param.value[1].toFixed(2)}<br/>`;
+                    tooltipText += `${t('chart.tt_skin', { name: param.seriesName, value: param.value[1].toFixed(2) })}<br/>`;
                 });
                 return tooltipText;
             }
         },
         legend: { show: false },
-        toolbox: { top: 10, right: 10, feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, myResetZoom: { show: true, title: 'Reset Zoom', icon: 'path://M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z', onclick: () => { const chart = (chartRefSkin.current as any); if (chart) { chart.getEchartsInstance().dispatchAction({ type: 'dataZoom', start: 0, end: 100 }); } } } } },
+        toolbox: resetZoomToolbox(chartRefSkin, t('chart.reset_zoom'), true),
         grid: { top: 70, bottom: 60, left: 55, right: 40, containLabel: true },
         dataZoom: [
           { type: 'inside', xAxisIndex: 0 },
           { type: 'slider', xAxisIndex: 0, bottom: 4, height: 14, showDataShadow: false, handleSize: '80%', showDetail: false }
         ],
         xAxis: {
-            name: 'Acid Volume (gal/ft)',
+            name: t('chart.axis_acid_volume_paren'),
             type: 'log',
             nameLocation: 'middle',
             nameGap: 35,
             min: xResSkin.min ?? skinXAuto?.min,
             max: xResSkin.max ?? skinXAuto?.max,
             axisLabel: {
-              formatter: (val: number) => new Intl.NumberFormat('pt-BR', { notation: val >= 1e6 ? 'compact' : 'standard' }).format(val)
+              formatter: (val: number) => new Intl.NumberFormat(numberLocale(lang), { notation: val >= 1e6 ? 'compact' : 'standard' }).format(val)
             }
         },
         yAxis: {
-            name: 'Skin',
+            name: t('chart.axis_skin'),
             type: 'value',
             min: yResSkin.min,
             max: yResSkin.max ?? 0,
@@ -1167,19 +1207,19 @@ const ChartComponent = () => {
         }))
       });
     }
-  }, [skinEvolutionData, visibleChart, skinActiveFlowrates, xdefinedLimit, ydefinedLimit, xLimit, yLimit]);
+  }, [skinEvolutionData, visibleChart, skinActiveFlowrates, xdefinedLimit, ydefinedLimit, xLimit, yLimit, t, lang]);
 
   const optionsList = useMemo(() => {
     return flowRegime === 'radial'
       ? [
-          { id: 'design', label: 'Design Plot', value: 'design' },
-          { id: 'pvbt', label: 'Simulation Chart', value: 'A' },
-          { id: 'analysis', label: 'Analysis Chart', value: 'B' },
-          { id: 'skin', label: 'Skin Evolution', value: 'skin' }
+          { id: 'pvbt', label: "Simulation Chart", value: 'A' },
+          { id: 'design', label: "Design Plot", value: 'design' },
+          { id: 'analysis', label: "Analysis Chart", value: 'B' },
+          { id: 'skin', label: "Skin Evolution", value: 'skin' }
         ]
       : [
-          { id: 'pvbt', label: 'Simulation Chart', value: 'A' },
-          { id: 'analysis', label: 'Analysis Chart', value: 'B' }
+          { id: 'pvbt', label: "Simulation Chart", value: 'A' },
+          { id: 'analysis', label: "Analysis Chart", value: 'B' }
         ];
   }, [flowRegime]);
 
@@ -1237,13 +1277,13 @@ const ChartComponent = () => {
                   exp.exportRadialSkinTable(skinEvolutionData, radialState.targetMode === 'skin' ? radialCurves[0]?.target : undefined);
                 }
               });
-            }}>Export Chart Data</button>
+            }}>{t('chart.export_data')}</button>
           </div>
         )}
         {flowRegime === 'linear' && (
           <>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={opt} onChange={(e) => setOpt(e.target.checked)} />PVBt Optimum
+              <input type="checkbox" checked={opt} onChange={(e) => setOpt(e.target.checked)} />{t('chart.pvbt_optimum')}
             </label>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer' }}>
               <input type="checkbox" checked={xisLog} onChange={(e) => setxIsLog(e.target.checked)} />X-Log
@@ -1254,12 +1294,12 @@ const ChartComponent = () => {
           </>
         )}
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer' }}>
-          <input type="checkbox" checked={grid} onChange={(e) => setGrid(e.target.checked)} />Grid
+          <input type="checkbox" checked={grid} onChange={(e) => setGrid(e.target.checked)} />{t('chart.grid')}
         </label>
         <div style={{ width: '1px', height: '14px', background: '#ccc', margin: '0 4px' }}></div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#666' }} title={isPt ? "Região hachurada em cinza com a linha tracejada indica trechos do gráfico cujos valores estão fora da janela física validada pelo modelo (±1 ordem de grandeza do ponto ótimo)." : "The gray hatched region with the dashed line marks stretches of the chart whose values fall outside the physical window validated by the model (±1 order of magnitude around the optimum point)."}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#666' }} title={t("chart.the_gray_hatched_region_with")}>
           <span style={{ display: 'inline-block', width: '14px', height: '12px', background: 'rgba(97,97,97,0.15)', borderLeft: '2px solid #616161' }}></span>
-          {isPt ? "Fora da Janela Validada" : "Outside Validated Window"}
+          {t("chart.outside_validated_window")}
         </div>
       </div>
 
@@ -1276,27 +1316,27 @@ const ChartComponent = () => {
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
-                <label><input type="checkbox" checked={xdefinedLimit} onChange={(e) => setxDefinedLimit(e.target.checked)} /> X Limits:</label>
+                <label><input type="checkbox" checked={xdefinedLimit} onChange={(e) => setxDefinedLimit(e.target.checked)} /> {t('chart.x_limits')}</label>
                 {xdefinedLimit && (
                   <>
-                    <input type="text" className="input" style={{ width: '70px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder={isPt ? "Mín (auto)" : "Min (auto)"} value={xLimit[0]} onChange={(e) => setxLimit([e.target.value, xLimit[1]])} />
-                    <input type="text" className="input" style={{ width: '70px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder={isPt ? "Máx (auto)" : "Max (auto)"} value={xLimit[1]} onChange={(e) => setxLimit([xLimit[0], e.target.value])} />
+                    <input type="text" className="input" style={{ width: '70px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder={t("chart.min_auto")} value={xLimit[0]} onChange={(e) => setxLimit([e.target.value, xLimit[1]])} />
+                    <input type="text" className="input" style={{ width: '70px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder={t("chart.max_auto")} value={xLimit[1]} onChange={(e) => setxLimit([xLimit[0], e.target.value])} />
                   </>
                 )}
               </div>
-              {xPreview.error && <span style={{ fontSize: '10.5px', color: '#c0392b' }}>{xPreview.error}</span>}
+              {xPreview.error && <span style={{ fontSize: '10.5px', color: '#c0392b' }}>{t(xPreview.error)}</span>}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
-                <label><input type="checkbox" checked={ydefinedLimit} onChange={(e) => setyDefinedLimit(e.target.checked)} /> Y Limits:</label>
+                <label><input type="checkbox" checked={ydefinedLimit} onChange={(e) => setyDefinedLimit(e.target.checked)} /> {t('chart.y_limits')}</label>
                 {ydefinedLimit && (
                   <>
-                    <input type="text" className="input" style={{ width: '70px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder={isPt ? "Mín (auto)" : "Min (auto)"} value={yLimit[0]} onChange={(e) => setyLimit([e.target.value, yLimit[1]])} />
-                    <input type="text" className="input" style={{ width: '70px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder={isPt ? "Máx (auto)" : "Max (auto)"} value={yLimit[1]} onChange={(e) => setyLimit([yLimit[0], e.target.value])} />
+                    <input type="text" className="input" style={{ width: '70px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder={t("chart.min_auto")} value={yLimit[0]} onChange={(e) => setyLimit([e.target.value, yLimit[1]])} />
+                    <input type="text" className="input" style={{ width: '70px', minHeight: '24px', padding: '0 4px', borderRadius: '4px' }} placeholder={t("chart.max_auto")} value={yLimit[1]} onChange={(e) => setyLimit([yLimit[0], e.target.value])} />
                   </>
                 )}
               </div>
-              {yPreview.error && <span style={{ fontSize: '10.5px', color: '#c0392b' }}>{yPreview.error}</span>}
+              {yPreview.error && <span style={{ fontSize: '10.5px', color: '#c0392b' }}>{t(yPreview.error)}</span>}
             </div>
           </div>
         );
@@ -1307,7 +1347,7 @@ const ChartComponent = () => {
           {visibleChart === 'A' ? "Simulation Chart" : visibleChart === 'design' ? "Design Plot" : "Analysis Chart"}
         </h5>
         <span className="text-muted" style={{ fontSize: '11.5px' }}>
-          {visibleChart === 'A' ? (flowRegime === 'radial' ? "Radial Injection Efficiency (Volume vs Flowrate)" : "Pore volumes injected to breakthrough vs. injection rate") : visibleChart === 'design' ? "Tunnel advancement sizing mapping optimal flowrates and volumes" : (flowRegime === 'radial' ? "Optimum injection rate and acid volume at the optimum, at a fixed target length, across the swept parameter" : "PVBt at fixed flowrate across the swept parameter")}
+          {visibleChart === 'A' ? (flowRegime === 'radial' ? t('chart.sub_sim_radial') : t('chart.sub_sim_linear')) : visibleChart === 'design' ? t('chart.sub_design') : (flowRegime === 'radial' ? t('chart.sub_analysis_radial') : t('chart.sub_analysis_linear'))}
         </span>
       </div>
 
@@ -1317,27 +1357,7 @@ const ChartComponent = () => {
           border: `1px solid ${SEVERITY_COLORS.warn}`, borderLeft: `4px solid ${SEVERITY_COLORS.warn}`,
           borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12',
         }}>
-          {isPt ? (
-            <>
-              <strong>{radialValidity.count} {radialValidity.count === 1 ? 'ponto' : 'pontos'}</strong>
-              {' '}em {radialValidity.curvesAffected} {radialValidity.curvesAffected === 1 ? 'curva' : 'curvas'}
-              {' '}fora da janela validada pelo artigo (±1 ordem de grandeza em torno de q_opt).{' '}
-              Pior caso: <strong>{fmtBblMin(radialValidity.worst.flowrate)} {radialValidity.worst.unit}</strong>
-              {' '}na curva “{radialValidity.worst.label}” — {fmtRatio(radialValidity.worst.ratio)}×{' '}
-              {radialValidity.worst.boundary === 'upper' ? 'acima do limite superior' : 'abaixo do limite inferior'}
-              {' '}({fmtBblMin(radialValidity.worst.limit)} {radialValidity.worst.unit}).
-            </>
-          ) : (
-            <>
-              <strong>{radialValidity.count} {radialValidity.count === 1 ? 'point' : 'points'}</strong>
-              {' '}across {radialValidity.curvesAffected} {radialValidity.curvesAffected === 1 ? 'curve' : 'curves'}
-              {' '}fall outside the window validated by the paper (±1 order of magnitude around q_opt).{' '}
-              Worst case: <strong>{fmtBblMin(radialValidity.worst.flowrate)} {radialValidity.worst.unit}</strong>
-              {' '}on curve “{radialValidity.worst.label}” — {fmtRatio(radialValidity.worst.ratio)}×{' '}
-              {radialValidity.worst.boundary === 'upper' ? 'above the upper limit' : 'below the lower limit'}
-              {' '}({fmtBblMin(radialValidity.worst.limit)} {radialValidity.worst.unit}).
-            </>
-          )}
+          {renderValidityText(radialValidity)}
         </div>
       )}
 
@@ -1347,74 +1367,54 @@ const ChartComponent = () => {
           border: `1px solid ${SEVERITY_COLORS.warn}`, borderLeft: `4px solid ${SEVERITY_COLORS.warn}`,
           borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12',
         }}>
-          {isPt ? (
-            <>
-              <strong>{linearValidity.count} {linearValidity.count === 1 ? 'ponto' : 'pontos'}</strong>
-              {' '}em {linearValidity.curvesAffected} {linearValidity.curvesAffected === 1 ? 'curva' : 'curvas'}
-              {' '}fora da janela validada pelo artigo (±1 ordem de grandeza em torno de q_opt).{' '}
-              Pior caso: <strong>{fmtBblMin(linearValidity.worst.flowrate)} {linearValidity.worst.unit}</strong>
-              {' '}na curva “{linearValidity.worst.label}” — {fmtRatio(linearValidity.worst.ratio)}×{' '}
-              {linearValidity.worst.boundary === 'upper' ? 'acima do limite superior' : 'abaixo do limite inferior'}
-              {' '}({fmtBblMin(linearValidity.worst.limit)} {linearValidity.worst.unit}).
-            </>
-          ) : (
-            <>
-              <strong>{linearValidity.count} {linearValidity.count === 1 ? 'point' : 'points'}</strong>
-              {' '}across {linearValidity.curvesAffected} {linearValidity.curvesAffected === 1 ? 'curve' : 'curves'}
-              {' '}fall outside the window validated by the paper (±1 order of magnitude around q_opt).{' '}
-              Worst case: <strong>{fmtBblMin(linearValidity.worst.flowrate)} {linearValidity.worst.unit}</strong>
-              {' '}on curve “{linearValidity.worst.label}” — {fmtRatio(linearValidity.worst.ratio)}×{' '}
-              {linearValidity.worst.boundary === 'upper' ? 'above the upper limit' : 'below the lower limit'}
-              {' '}({fmtBblMin(linearValidity.worst.limit)} {linearValidity.worst.unit}).
-            </>
-          )}
+          {renderValidityText(linearValidity)}
         </div>
       )}
 
       {visibleChart === 'design' && (designPlotData?.outside_calibrated_range?.length ?? 0) > 0 && (
         <div role="alert" style={{ margin: '0 2px 10px', padding: '9px 12px', fontSize: '12px', lineHeight: 1.5, border: `1px solid ${SEVERITY_COLORS.warn}`, borderLeft: `4px solid ${SEVERITY_COLORS.warn}`, borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12' }}>
-          <strong>{isPt ? 'Fora da faixa calibrada:' : 'Outside calibrated range:'}</strong> {designPlotData!.outside_calibrated_range!.join(', ')} K — {isPt ? `fora de ${T_CALIBRATED_K[0]}–${T_CALIBRATED_K[1]} K; correlações extrapoladas, use com cautela.` : `outside ${T_CALIBRATED_K[0]}–${T_CALIBRATED_K[1]} K; the model correlations are extrapolated, treat with caution.`}
+          <strong>{t("chart.outside_calibrated_range")}</strong> {designPlotData!.outside_calibrated_range!.map((k: number) => roundCelsius(k, 2)).join(', ')} °C — {t('chart.design_outside_range', { lo: T_CALIBRATED_C[0], hi: T_CALIBRATED_C[1] })}
         </div>
       )}
 
       {visibleChart === 'design' && designPlotData?.has_clipped_volume && (
-        <PhysicalLimitNote isPt={isPt} swept="length" />
+        <PhysicalLimitNote lang={lang} swept="length" />
       )}
 
       {visibleChart === 'B' && flowRegime === 'radial' && analysisPlottable && analyse.radial?.hasClippedVolume && (
-        <PhysicalLimitNote isPt={isPt} swept={analyse.radial.sweepParam} />
+        <PhysicalLimitNote lang={lang} swept={analyse.radial.sweepParam} />
       )}
 
       {visibleChart === 'B' && flowRegime === 'radial' && analysisPlottable && (analyse.radial?.outsideCalibratedRange.length ?? 0) > 0 && (
         <div role="alert" style={{ margin: '0 2px 10px', padding: '9px 12px', fontSize: '12px', lineHeight: 1.5, border: `1px solid ${SEVERITY_COLORS.warn}`, borderLeft: `4px solid ${SEVERITY_COLORS.warn}`, borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12' }}>
-          <strong>{isPt ? 'Fora da faixa calibrada:' : 'Outside calibrated range:'}</strong> {isPt ? `${analyse.radial!.outsideCalibratedRange.length} ponto(s) de temperatura fora de ${T_CALIBRATED_K[0]}–${T_CALIBRATED_K[1]} K — extrapolação das correlações do modelo, use com cautela.` : `${analyse.radial!.outsideCalibratedRange.length} temperature point(s) lie outside ${T_CALIBRATED_K[0]}–${T_CALIBRATED_K[1]} K — the model correlations are extrapolated there; treat with caution.`}
+          <strong>{t("chart.outside_calibrated_range")}</strong> {t('chart.analysis_outside_range', { count: analyse.radial!.outsideCalibratedRange.length, lo: T_CALIBRATED_C[0], hi: T_CALIBRATED_C[1] })}
         </div>
       )}
 
       {visibleChart === 'B' && flowRegime === 'radial' && analysisPlottable && (analyse.radial?.skippedValues.length ?? 0) > 0 && (
         <div role="status" style={{ margin: '0 2px 10px', padding: '9px 12px', fontSize: '12px', border: `1px solid ${SEVERITY_COLORS.warn}`, borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12' }}>
-          {isPt ? 'Sem vazão ótima interior para' : 'No interior optimum exists for'} {analyse.radial!.skippedValues.map(v => Number(v.toPrecision(4))).join(', ')} — {isPt ? 'valores omitidos.' : 'these values were skipped.'}
+          {t("chart.no_interior_optimum_exists_for")} {analyse.radial!.skippedValues.map(v => Number(v.toPrecision(4))).join(', ')} — {t("chart.these_values_were_skipped")}
         </div>
       )}
 
       {visibleChart === 'design' && flowRegime === 'radial' && !!designPlotData?.series?.length && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '0 2px 12px', padding: '10px 14px', border: '1px solid #ddd', borderRadius: '6px' }}>
           <ChipRow
-            legendLabel={isPt ? "Temperaturas:" : "Temperatures:"}
+            legendLabel={t("chart.temperatures")}
             items={designPlotData.series.map((s: any, idx: number) => ({
               id: String(s.temperature_k),
-              label: `${s.temperature_k.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} K`,
+              label: `${roundCelsius(s.temperature_k, 2).toLocaleString(numberLocale(lang), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} °C`,
               color: CURVE_PALETTE[idx % CURVE_PALETTE.length],
             }))}
             active={designActiveTemps}
             onToggle={(id) => setDesignActiveTemps((prev) => toggleInSet(prev, id))}
           />
           <SegmentedControl
-            legendLabel={isPt ? "Mostrar:" : "Show:"}
+            legendLabel={t("chart.show")}
             options={[
-              { value: 'rate', label: 'Rate', preview: 'solid' },
-              { value: 'volume', label: 'Volume', preview: 'dashed' },
-              { value: 'both', label: isPt ? 'Ambos' : 'Both' },
+              { value: 'rate', label: t('chart.legend_rate'), preview: 'solid' },
+              { value: 'volume', label: t('chart.legend_volume'), preview: 'dashed' },
+              { value: 'both', label: t("chart.both") },
             ]}
             value={designSeriesFilter}
             onChange={setDesignSeriesFilter}
@@ -1429,7 +1429,7 @@ const ChartComponent = () => {
       {visibleChart === 'A' && flowRegime === 'radial' && radialCurves.length > 0 && (
         <div style={{ margin: '0 2px 12px', padding: '10px 14px', border: '1px solid #ddd', borderRadius: '6px' }}>
           <ChipRow
-            legendLabel={isPt ? "Alvos:" : "Targets:"}
+            legendLabel={t("chart.targets")}
             items={radialCurves.map((c, idx) => ({
               id: c.target_label,
               label: c.target_label,
@@ -1439,7 +1439,7 @@ const ChartComponent = () => {
             onToggle={(id) => setSimActiveTargets((prev) => toggleInSet(prev, id))}
             extra={
               <Chip
-                item={{ id: '__optimum_path__', label: 'Optimum path', color: '#4A90E2' }}
+                item={{ id: '__optimum_path__', label: t('chart.legend_opt_path'), color: '#4A90E2' }}
                 isActive={simShowOptimumPath}
                 onToggle={() => setSimShowOptimumPath((prev) => !prev)}
               />
@@ -1451,7 +1451,7 @@ const ChartComponent = () => {
       {visibleChart === 'skin' && skinEvolutionData && Object.keys(skinEvolutionData).length > 0 && (
         <div style={{ margin: '0 2px 12px', padding: '10px 14px', border: '1px solid #ddd', borderRadius: '6px' }}>
           <ChipRow
-            legendLabel={isPt ? "Vazões:" : "Flow rates:"}
+            legendLabel={t("chart.flow_rates")}
             items={Object.keys(skinEvolutionData).map((q, idx) => ({
               id: q,
               label: `${q} bbl/min`,

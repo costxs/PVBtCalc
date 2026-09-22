@@ -1,6 +1,7 @@
 
 import type { Curve } from "../redux/storageresults/slice";
 import { saveBlob } from "./directoryExport";
+import { requestFailed } from "./exportText";
 import { API_BASE } from "../services/api";
 
 export type FigureSize = "single" | "double";
@@ -153,7 +154,7 @@ export async function exportRadialWorkbookServer(
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`/export/radial falhou (HTTP ${res.status}): ${detail.slice(0, 300)}`);
+    throw new Error(requestFailed("/export/radial", res.status, detail));
   }
   const blob = await res.blob();
   const suffix = includeImages ? "" : "_TablesOnly";
@@ -174,7 +175,7 @@ export async function exportRadialFiguresServer(
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`/export/radial/figures falhou (HTTP ${res.status}): ${detail.slice(0, 300)}`);
+    throw new Error(requestFailed("/export/radial/figures", res.status, detail));
   }
   const blob = await res.blob();
   const fallbackName = `PVBtCalc_Radial_Figures_${payload.inputs.simulation_id}.zip`;

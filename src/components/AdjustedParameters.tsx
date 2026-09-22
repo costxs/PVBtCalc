@@ -2,24 +2,19 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "../redux/store";
 import InletSection from "./InletPressure";
+import { useT, type TKey } from "../i18n";
+import { localizeNumberText } from "../tools/parseDecimal";
 
 export default function AdjustedParametersCard() {
+  const { t, lang } = useT();
   const [subTab, setSubTab] = useState('adjusted');
   const data = useSelector((state: RootState) => state.parameters);
 
-  const getLegen = (key: string) => {
-    switch (key) {
-      case 'ro': return 'Acid Density';
-      case 'X': return 'Acid Volumetric Dissolving Power, 100% HCl';
-      case 'x': return 'Acid Volumetric Dissolving Power, fraction HCl';
-      case 'n': return 'Enhanced Permeability Area Factor';
-      case 'a': return 'Enhanced Permeability Zone Flow Coefficient, m²⁻²ⁿ';
-      case 'b': return 'Wormhole Flow Coefficient, s/m';
-      case 'k0': return 'Mass Transfer Coefficient Static Constant, 1/m²';
-      case 'f': return 'Flowing Fraction (fraction of pore volume receiving flow, by rock type)';
-      default: return '';
-    }
+  const LEGEND_KEYS: Record<string, TKey> = {
+    ro: 'params.l_ro', X: 'params.l_X', x: 'params.l_x', n: 'params.l_n',
+    a: 'params.l_a', b: 'params.l_b', k0: 'params.l_k0', f: 'params.l_f',
   };
+  const getLegen = (key: string) => (LEGEND_KEYS[key] ? t(LEGEND_KEYS[key]) : '');
 
   return (
     <section className="blueprint" style={{ padding: '18px 20px 20px' }}>
@@ -34,7 +29,7 @@ export default function AdjustedParametersCard() {
               checked={subTab === 'adjusted'}
               onChange={(e) => setSubTab(e.target.value)}
             />
-            Adjusted Parameters
+            {t('params.tab_adjusted')}
           </label>
           <label className="seg-opt">
             <input
@@ -44,7 +39,7 @@ export default function AdjustedParametersCard() {
               checked={subTab === 'inlet'}
               onChange={(e) => setSubTab(e.target.value)}
             />
-            Inlet Pressure
+            {t('params.tab_inlet')}
           </label>
         </div>
         <span style={{ flex: 1, height: '1px', background: 'var(--color-divider)' }}></span>
@@ -55,8 +50,8 @@ export default function AdjustedParametersCard() {
           <table className="table" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'center' }}>Parameter</th>
-                <th style={{ textAlign: 'center' }}>Value</th>
+                <th style={{ textAlign: 'center' }}>{t('params.col_parameter')}</th>
+                <th style={{ textAlign: 'center' }}>{t('params.col_value')}</th>
               </tr>
             </thead>
             <tbody>
@@ -74,8 +69,8 @@ export default function AdjustedParametersCard() {
                   >
                     {value
                       ? Math.abs(value as number) < 0.001 || Math.abs(value as number) > 1000
-                        ? (value as number).toExponential(2)
-                        : (value as number).toFixed(4)
+                        ? localizeNumberText((value as number).toExponential(2), lang)
+                        : localizeNumberText((value as number).toFixed(4), lang)
                       : '0'}
                   </td>
                 </tr>
@@ -83,7 +78,7 @@ export default function AdjustedParametersCard() {
             </tbody>
           </table>
           <p className="text-muted" style={{ margin: '12px 0 0', fontSize: '11.5px', textAlign: 'center' }}>
-            For more information on the description of a variable, position the cursor over it.
+            {t('params.hint')}
           </p>
         </div>
       )}

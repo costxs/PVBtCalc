@@ -26,11 +26,11 @@ describe("ui slice visibleChart initial state", () => {
     expect(state.visibleChart).toBe("A");
   });
 
-  it("defaults to 'design' when flowRegime is set to 'radial'", async () => {
+  it("defaults to 'A' when flowRegime is set to 'radial'", async () => {
     (globalThis as any).localStorage.setItem("radialFlowRegime", "radial");
     const { default: reducer } = await import("./slice");
     const state = reducer(undefined, { type: "@@INIT" });
-    expect(state.visibleChart).toBe("design");
+    expect(state.visibleChart).toBe("A");
   });
 
   it("defaults to 'A' when flowRegime is set to 'linear'", async () => {

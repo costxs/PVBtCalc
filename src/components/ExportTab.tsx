@@ -17,6 +17,7 @@ import {
 } from "../tools/simulationStoreIO";
 import type { SimulationSnapshotSummary } from "../tools/simulationSnapshot";
 import { openSnapshotIntoRedux } from "../tools/simulationRestore";
+import { useT, translateIfKey } from "../i18n";
 
 type FormatKey = "workbook" | "figures" | "tablesOnly";
 
@@ -27,24 +28,13 @@ interface ExportResultRow {
   detail: string;
 }
 
-const FORMAT_LABELS: Record<"pt" | "en", Record<FormatKey, string>> = {
-  pt: {
-    workbook: "Planilha completa (.xlsx)",
-    figures: "Pacote de figuras (.zip)",
-    tablesOnly: "Somente tabelas (.xlsx, sem imagens)",
-  },
-  en: {
-    workbook: "Full workbook (.xlsx)",
-    figures: "Figure package (.zip)",
-    tablesOnly: "Tables only (.xlsx, no images)",
-  },
-};
-
+// curve.temperature is stored in Celsius for linear runs and Kelvin for radial ones (an
+// existing, pre-Celsius-conversion difference in how the two regimes keep this field); the
+// magnitude check disambiguates it. Only Celsius is shown.
 function fmtTemperature(temp: number | null): string {
   if (temp == null || !Number.isFinite(temp)) return "—";
-  const k = temp >= 100 ? temp : temp + 273.15;
   const c = temp >= 100 ? temp - 273.15 : temp;
-  return `${c.toFixed(1)} °C (${k.toFixed(1)} K)`;
+  return `${c.toFixed(1)} °C`;
 }
 
 interface ExportTabProps {
@@ -57,9 +47,8 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
   const radialState = useSelector((state: RootState) => state.radial);
   const analysisResult = useSelector((state: RootState) => state.analysisResult);
   const userToken = useSelector((state: RootState) => state.user.token);
-  const language = useSelector((state: RootState) => state.ui.language);
-  const isPt = language === "pt";
-  const FORMAT_LABELS_LANG = FORMAT_LABELS[language];
+  const { t, lang } = useT();
+  const formatLabel = (f: FormatKey) => t(`export.format_${f}`);
 
   const [savedSims, setSavedSims] = useState<SimulationSnapshotSummary[]>([]);
   const [savedSimsLoading, setSavedSimsLoading] = useState(true);
@@ -83,18 +72,14 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
       const detail = (e as CustomEvent<SimulationsEvictedDetail>).detail;
       const plural = detail.evictedLabels.length > 1;
       setEvictionNotice(
-        isPt
-          ? `Limite de espaço do cache atingido — removida${plural ? "s" : ""} `
-            + `a${plural ? "s" : ""} simulação${plural ? "ões" : ""} `
-            + `mais antiga${plural ? "s" : ""}: ${detail.evictedLabels.join(", ")}.`
-          : `Cache storage limit reached — removed the oldest ${plural ? "simulations" : "simulation"}: ${detail.evictedLabels.join(", ")}.`
+        t(plural ? "export.eviction_many" : "export.eviction_one", { labels: detail.evictedLabels.join(", ") })
       );
       reloadSavedSims();
     };
     window.addEventListener(SIMULATION_EVICTED_EVENT, onEvicted);
     return () => window.removeEventListener(SIMULATION_EVICTED_EVENT, onEvicted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPt]);
+  }, [lang]);
 
   const handleOpenSaved = async (id: string) => {
     setOpeningId(id);
@@ -107,9 +92,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
   };
 
   const handleDeleteSaved = async (id: string, label: string) => {
-    const msg = isPt
-      ? `Excluir a simulação salva "${label}"? Essa ação não pode ser desfeita.`
-      : `Delete the saved simulation "${label}"? This action cannot be undone.`;
+    const msg = t("export.confirm_delete_one", { label });
     if (!window.confirm(msg)) return;
     await deleteSnapshot(id);
     await reloadSavedSims();
@@ -117,9 +100,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
 
   const handleDeleteAllSaved = async () => {
     if (savedSims.length === 0) return;
-    const msg = isPt
-      ? `Excluir TODAS as ${savedSims.length} simulações salvas? Essa ação não pode ser desfeita.`
-      : `Delete ALL ${savedSims.length} saved simulations? This action cannot be undone.`;
+    const msg = t("export.confirm_delete_all", { count: savedSims.length });
     if (!window.confirm(msg)) return;
     await deleteAllSnapshots();
     await reloadSavedSims();
@@ -172,7 +153,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
     const handle = await pickDirectory();
     if (handle) {
       setDirHandle(handle);
-      setDirName((handle as any).name ?? (isPt ? "pasta selecionada" : "selected folder"));
+      setDirName((handle as any).name ?? (t("export.selected_folder")));
     }
   };
 
@@ -209,13 +190,13 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
       }
     }
 
-    const downloadedDetail = (savedAs: string) => isPt ? `Baixado (${savedAs})` : `Downloaded (${savedAs})`;
-    const savedToFolderDetail = (savedAs: string) => isPt ? `Salvo na pasta (${savedAs})` : `Saved to folder (${savedAs})`;
+    const downloadedDetail = (savedAs: string) => t("export.downloaded", { name: savedAs });
+    const savedToFolderDetail = (savedAs: string) => t("export.saved_to_folder", { name: savedAs });
 
     const rows: ExportResultRow[] = [];
     for (const g of radialGroups) {
       if (!g.hasData) {
-        const detail = isPt ? "Simulação sem resultados calculados" : "Simulation with no calculated results";
+        const detail = t("export.simulation_with_no_calculated_results");
         for (const f of formats) rows.push({ simId: g.simId, format: f, status: "error", detail });
         done += formats.length;
         setProgress({ done, total });
@@ -236,7 +217,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
             rows.push({ simId: g.simId, format: f, status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });
           }
         } catch (err) {
-          rows.push({ simId: g.simId, format: f, status: "error", detail: err instanceof Error ? err.message : String(err) });
+          rows.push({ simId: g.simId, format: f, status: "error", detail: translateIfKey(t, err instanceof Error ? err.message : String(err)) });
         }
         done++;
         setProgress({ done, total });
@@ -244,7 +225,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
     }
 
     for (const g of linearNoData) {
-      const detail = isPt ? "Simulação sem resultados calculados" : "Simulation with no calculated results";
+      const detail = t("export.simulation_with_no_calculated_results");
       for (const f of formats) { rows.push({ simId: g.simId, format: f, status: "error", detail }); done++; }
       setProgress({ done, total });
     }
@@ -255,7 +236,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
         const r = await exportLinearWorkbookServer(linearWithData.flatMap((g) => g.curves), userToken || "", { includeImages: true, directoryHandle: targetDir });
         rows.push({ simId: label, format: "workbook", status: "ok", detail: r.usedFallback ? downloadedDetail(r.savedAs) : savedToFolderDetail(r.savedAs) });
       } catch (err) {
-        rows.push({ simId: label, format: "workbook", status: "error", detail: err instanceof Error ? err.message : String(err) });
+        rows.push({ simId: label, format: "workbook", status: "error", detail: translateIfKey(t, err instanceof Error ? err.message : String(err)) });
       }
       done++;
       setProgress({ done, total });
@@ -268,12 +249,12 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
           try {
             g.curves.forEach((c) => exportCurveAsVerticalTable(c));
             const n = g.curves.length;
-            rows.push({ simId: g.simId, format: f, status: "ok", detail: isPt ? `Baixado (${n} arquivo${n > 1 ? "s" : ""})` : `Downloaded (${n} file${n > 1 ? "s" : ""})` });
+            rows.push({ simId: g.simId, format: f, status: "ok", detail: t(n > 1 ? "export.downloaded_files_many" : "export.downloaded_files_one", { count: n }) });
           } catch (err) {
-            rows.push({ simId: g.simId, format: f, status: "error", detail: err instanceof Error ? err.message : String(err) });
+            rows.push({ simId: g.simId, format: f, status: "error", detail: translateIfKey(t, err instanceof Error ? err.message : String(err)) });
           }
         } else {
-          rows.push({ simId: g.simId, format: f, status: "skipped", detail: isPt ? "Pacote de figuras não disponível para regime linear (use a Planilha completa, que inclui a figura)" : "Figure package not available for linear regime (use the Full workbook, which includes the figure)" });
+          rows.push({ simId: g.simId, format: f, status: "skipped", detail: t("export.figure_package_not_available_for") });
         }
         done++;
         setProgress({ done, total });
@@ -290,20 +271,20 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
   return (
     <section style={{ padding: "30px 40px", overflowY: "auto", maxHeight: "100%", flex: 1 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "24px" }}>
-        <h2 style={{ margin: 0, fontSize: "24px", letterSpacing: "0.05em", color: "var(--color-accent-900)" }}>Export</h2>
+        <h2 style={{ margin: 0, fontSize: "24px", letterSpacing: "0.05em", color: "var(--color-accent-900)" }}>{t('common.export')}</h2>
         <span style={{ flex: 1, height: "1px", background: "var(--color-divider)" }}></span>
       </div>
 
       <div style={{ marginBottom: "30px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
           <h3 style={{ margin: 0, fontSize: "15px", letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--color-accent-900)" }}>
-            {isPt ? "Simulações Salvas" : "Saved Simulations"}
+            {t("export.saved_simulations")}
           </h3>
-          <span style={{ fontSize: "12px", color: "var(--color-neutral-600)" }}>{isPt ? "(cache local — sobrevive a recarregar a página)" : "(local cache — survives page reload)"}</span>
+          <span style={{ fontSize: "12px", color: "var(--color-neutral-600)" }}>{t("export.local_cache_survives_page_reload")}</span>
           <span style={{ flex: 1 }} />
           {savedSims.length > 0 && (
             <button className="btn btn-red" style={{ fontSize: "11.5px", padding: "4px 10px" }} onClick={handleDeleteAllSaved}>
-              {isPt ? "Excluir todas" : "Delete all"}
+              {t("export.delete_all")}
             </button>
           )}
         </div>
@@ -321,21 +302,21 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
         )}
 
         {savedSimsLoading ? (
-          <div style={{ padding: "12px", fontSize: "13px", color: "var(--color-neutral-600)" }}>{isPt ? "Carregando…" : "Loading…"}</div>
+          <div style={{ padding: "12px", fontSize: "13px", color: "var(--color-neutral-600)" }}>{t("export.loading")}</div>
         ) : savedSims.length === 0 ? (
-          <div style={{ padding: "12px", fontSize: "13px", color: "var(--color-neutral-600)" }}>{isPt ? "Nenhuma simulação salva ainda." : "No saved simulations yet."}</div>
+          <div style={{ padding: "12px", fontSize: "13px", color: "var(--color-neutral-600)" }}>{t("export.no_saved_simulations_yet")}</div>
         ) : (
           <div style={{ border: "1px solid var(--color-divider)", borderRadius: "8px", overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
                 <tr style={{ background: "var(--color-accent-700, #2F75B5)", color: "#fff", textAlign: "left" }}>
-                  <th style={{ padding: "8px 10px" }}>{isPt ? "Nome" : "Name"}</th>
+                  <th style={{ padding: "8px 10px" }}>{t("export.name")}</th>
                   <th style={{ padding: "8px 10px" }}>Regime</th>
-                  <th style={{ padding: "8px 10px" }}>{isPt ? "Rocha" : "Rock"}</th>
-                  <th style={{ padding: "8px 10px" }}>{isPt ? "Ácido" : "Acid"}</th>
-                  <th style={{ padding: "8px 10px" }}>{isPt ? "Temperatura" : "Temperature"}</th>
-                  <th style={{ padding: "8px 10px" }}>{isPt ? "Alvos" : "Targets"}</th>
-                  <th style={{ padding: "8px 10px" }}>{isPt ? "Salvo em" : "Saved on"}</th>
+                  <th style={{ padding: "8px 10px" }}>{t("export.rock")}</th>
+                  <th style={{ padding: "8px 10px" }}>{t("export.acid")}</th>
+                  <th style={{ padding: "8px 10px" }}>{t("export.temperature")}</th>
+                  <th style={{ padding: "8px 10px" }}>{t("export.targets")}</th>
+                  <th style={{ padding: "8px 10px" }}>{t("export.saved_on")}</th>
                   <th style={{ padding: "8px 10px" }}></th>
                 </tr>
               </thead>
@@ -365,10 +346,10 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
                     </td>
                     <td style={{ padding: "6px 10px", display: "flex", gap: "6px", whiteSpace: "nowrap" }}>
                       <button className="btn" style={{ fontSize: "11px", padding: "3px 8px" }} disabled={openingId === sim.id} onClick={() => handleOpenSaved(sim.id)}>
-                        {openingId === sim.id ? (isPt ? "Abrindo…" : "Opening…") : (isPt ? "Abrir" : "Open")}
+                        {openingId === sim.id ? (t("export.opening")) : (t("export.open"))}
                       </button>
-                      <button className="btn" style={{ fontSize: "11px", padding: "3px 8px" }} onClick={() => startRename(sim)}>{isPt ? "Renomear" : "Rename"}</button>
-                      <button className="btn btn-red" style={{ fontSize: "11px", padding: "3px 8px" }} onClick={() => handleDeleteSaved(sim.id, sim.label)}>{isPt ? "Excluir" : "Delete"}</button>
+                      <button className="btn" style={{ fontSize: "11px", padding: "3px 8px" }} onClick={() => startRename(sim)}>{t("export.rename")}</button>
+                      <button className="btn btn-red" style={{ fontSize: "11px", padding: "3px 8px" }} onClick={() => handleDeleteSaved(sim.id, sim.label)}>{t("export.delete")}</button>
                     </td>
                   </tr>
                 ))}
@@ -380,21 +361,19 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
 
       {groups.length === 0 ? (
         <div style={{ padding: "24px", textAlign: "center", color: "var(--color-neutral-600)", fontSize: "14px" }}>
-          {isPt ? "Nenhuma simulação calculada ainda — vá para" : "No simulations calculated yet — go to"}{" "}
+          {t("export.no_simulations_calculated_yet_go")}{" "}
           <button className="btn-ghost" style={{ fontSize: "14px", padding: 0 }} onClick={onGoToRunner}>RUNNER</button>.
         </div>
       ) : (
         <>
           <div style={{ marginBottom: "22px" }}>
             <h3 style={{ margin: "0 0 8px", fontSize: "15px", letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--color-accent-900)" }}>
-              {isPt ? "Exportar (desta sessão)" : "Export (this session)"}
+              {t("export.export_this_session")}
             </h3>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
               <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", cursor: "pointer", fontWeight: 600 }}>
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} />
-                {isPt
-                  ? `Selecionar tudo (${groups.length} simulaç${groups.length === 1 ? "ão" : "ões"})`
-                  : `Select all (${groups.length} simulation${groups.length === 1 ? "" : "s"})`}
+                {t(groups.length === 1 ? "export.select_all_one" : "export.select_all_many", { count: groups.length })}
               </label>
             </div>
 
@@ -405,10 +384,10 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
                     <th style={{ padding: "8px 10px", width: "34px" }}></th>
                     <th style={{ padding: "8px 10px" }}>ID</th>
                     <th style={{ padding: "8px 10px" }}>Regime</th>
-                    <th style={{ padding: "8px 10px" }}>{isPt ? "Rocha" : "Rock"}</th>
-                    <th style={{ padding: "8px 10px" }}>{isPt ? "Ácido" : "Acid"}</th>
-                    <th style={{ padding: "8px 10px" }}>{isPt ? "Temperatura" : "Temperature"}</th>
-                    <th style={{ padding: "8px 10px" }}>{isPt ? "Alvos" : "Targets"}</th>
+                    <th style={{ padding: "8px 10px" }}>{t("export.rock")}</th>
+                    <th style={{ padding: "8px 10px" }}>{t("export.acid")}</th>
+                    <th style={{ padding: "8px 10px" }}>{t("export.temperature")}</th>
+                    <th style={{ padding: "8px 10px" }}>{t("export.targets")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -422,13 +401,13 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
                             checked={selected.has(g.simId)}
                             disabled={!g.hasData}
                             onChange={() => toggleOne(g.simId)}
-                            title={!g.hasData ? (isPt ? "Simulação sem resultados calculados" : "Simulation with no calculated results") : undefined}
+                            title={!g.hasData ? (t("export.simulation_with_no_calculated_results")) : undefined}
                           />
                         </td>
                         <td style={{ padding: "6px 10px", fontWeight: 600 }}>
                           {g.simId}
                           {isCurrent && (
-                            <span style={{ marginLeft: "6px", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", color: "var(--color-accent-700)" }} title={isPt ? "Rodada radial ativa -- unica com Design/Skin disponíveis para export" : "Active radial run -- the only one with Design/Skin available for export"}>{isPt ? "ATIVA" : "ACTIVE"}</span>
+                            <span style={{ marginLeft: "6px", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", color: "var(--color-accent-700)" }} title={t("export.active_radial_run_the_only")}>{t("export.active")}</span>
                           )}
                         </td>
                         <td style={{ padding: "6px 10px", textTransform: "capitalize" }}>{g.flowRegime}</td>
@@ -445,41 +424,37 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "22px", padding: "16px", border: "1px solid var(--color-divider)", borderRadius: "8px" }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-accent-900)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{isPt ? "Formatos" : "Formats"}</div>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-accent-900)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("export.formats")}</div>
 
             <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", cursor: "pointer" }}>
               <input type="checkbox" checked={fmtWorkbook} onChange={(e) => setFmtWorkbook(e.target.checked)} />
-              {FORMAT_LABELS_LANG.workbook} — {isPt ? "radial: abas Inputs, Design, Sim, Skin, Resumo gráficos; linear: Inputs, Figures, Sim, Experimental — com figuras embutidas" : "radial: Inputs, Design, Sim, Skin, Chart Summary sheets; linear: Inputs, Figures, Sim, Experimental — with embedded figures"}
+              {formatLabel("workbook")} — {t("export.radial_inputs_design_sim_skin")}
             </label>
 
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", cursor: "pointer" }}>
                 <input type="checkbox" checked={fmtFigures} onChange={(e) => setFmtFigures(e.target.checked)} />
-                {FORMAT_LABELS_LANG.figures} — PNG 300 dpi
+                {formatLabel("figures")} — PNG 300 dpi
               </label>
               {fmtFigures && (
                 <select
                   className="input" style={{ fontSize: "12px", minHeight: "26px", padding: "0 6px" }}
                   value={figureSize} onChange={(e) => setFigureSize(e.target.value as FigureSize)}
-                  title={isPt ? "Tamanho da figura (Elsevier/JPSE)" : "Figure size (Elsevier/JPSE)"}
+                  title={t("export.figure_size_elsevier_jpse")}
                 >
-                  <option value="single">{isPt ? "1 coluna (90 mm)" : "1 column (90 mm)"}</option>
-                  <option value="double">{isPt ? "2 colunas (190 mm)" : "2 columns (190 mm)"}</option>
+                  <option value="single">{t("export.1_column_90_mm")}</option>
+                  <option value="double">{t("export.2_columns_190_mm")}</option>
                 </select>
               )}
             </div>
 
             <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", cursor: "pointer" }}>
               <input type="checkbox" checked={fmtTablesOnly} onChange={(e) => setFmtTablesOnly(e.target.checked)} />
-              {FORMAT_LABELS_LANG.tablesOnly} — {isPt ? "arquivo mais leve" : "lighter file"}
+              {formatLabel("tablesOnly")} — {t("export.lighter_file")}
             </label>
 
             <div style={{ fontSize: "11.5px", color: "var(--color-neutral-600)", marginTop: "2px" }}>
-              {isPt
-                ? <>Regime linear: "{FORMAT_LABELS_LANG.workbook}" junta todas as curvas lineares selecionadas (modelo + experimentais) em um só arquivo, com figura e ponto ótimo; "{FORMAT_LABELS_LANG.tablesOnly}" gera um arquivo por curva.
-                  Simulações radiais que não são a rodada ativa exportam sem as abas Design/Skin (dados só ficam em memória durante a rodada em curso).</>
-                : <>Linear regime: "{FORMAT_LABELS_LANG.workbook}" combines all selected linear curves (model + experimental) in one file, with figure and optimum point; "{FORMAT_LABELS_LANG.tablesOnly}" writes one file per curve.
-                  Radial simulations other than the active run export without the Design/Skin sheets (data only stays in memory during the current run).</>}
+              {t("export.linear_note", { workbook: formatLabel("workbook"), tablesOnly: formatLabel("tablesOnly") })}
             </div>
           </div>
 
@@ -487,22 +462,22 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
             {dirSupported ? (
               <>
                 <button className="btn" style={{ fontSize: "12.5px", padding: "6px 12px" }} onClick={handlePickDirectory}>
-                  {dirName ? (isPt ? "Alterar pasta" : "Change folder") : (isPt ? "Escolher pasta de destino" : "Choose destination folder")}
+                  {dirName ? (t("export.change_folder")) : (t("export.choose_destination_folder"))}
                 </button>
                 <span style={{ fontSize: "12.5px", color: "var(--color-neutral-700)" }}>
-                  {dirName ? `${isPt ? "Pasta" : "Folder"}: ${dirName}` : (isPt ? "Nenhuma pasta escolhida — usa o download padrão do navegador" : "No folder chosen — uses the browser's default download")}
+                  {dirName ? `${t("export.folder")}: ${dirName}` : (t("export.no_folder_chosen_uses_the"))}
                 </span>
               </>
             ) : (
               <span style={{ fontSize: "12.5px", color: "var(--color-neutral-600)" }}>
-                {isPt ? "Seu navegador baixa para a pasta de downloads (escolha de pasta exige Chrome ou Edge)." : "Your browser downloads to the downloads folder (choosing a folder requires Chrome or Edge)."}
+                {t("export.your_browser_downloads_to_the")}
               </span>
             )}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
             <button className="btn btn-green" style={{ fontSize: "13px", padding: "9px 20px", borderRadius: "9px" }} disabled={!canExport} onClick={handleExport}>
-              {exporting ? (isPt ? "Exportando…" : "Exporting…") : (isPt ? "Exportar" : "Export")}
+              {exporting ? (t("export.exporting")) : (t("export.export"))}
             </button>
             {exporting && progress.total > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, maxWidth: "320px" }}>
@@ -519,16 +494,16 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
                 <thead>
                   <tr style={{ background: "var(--color-accent-100, #eef3f8)", textAlign: "left" }}>
-                    <th style={{ padding: "6px 10px" }}>{isPt ? "Simulação" : "Simulation"}</th>
-                    <th style={{ padding: "6px 10px" }}>{isPt ? "Formato" : "Format"}</th>
-                    <th style={{ padding: "6px 10px" }}>{isPt ? "Resultado" : "Result"}</th>
+                    <th style={{ padding: "6px 10px" }}>{t("export.simulation")}</th>
+                    <th style={{ padding: "6px 10px" }}>{t("export.format")}</th>
+                    <th style={{ padding: "6px 10px" }}>{t("export.result")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {results.map((r, i) => (
                     <tr key={`${r.simId}-${r.format}-${i}`} style={{ borderTop: "1px solid var(--color-divider)" }}>
                       <td style={{ padding: "6px 10px" }}>{r.simId}</td>
-                      <td style={{ padding: "6px 10px" }}>{FORMAT_LABELS_LANG[r.format]}</td>
+                      <td style={{ padding: "6px 10px" }}>{formatLabel(r.format)}</td>
                       <td style={{
                         padding: "6px 10px",
                         color: r.status === "ok" ? "#2b563a" : r.status === "skipped" ? "#7a4a12" : "#8e3c33",

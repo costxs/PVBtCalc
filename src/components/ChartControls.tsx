@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import type { ReactNode } from "react";
 
 export interface ChipItem {
@@ -14,6 +15,7 @@ interface ChipProps {
 }
 
 export function Chip({ item, isActive, disableOff, onToggle }: ChipProps) {
+  const { t } = useT();
   const blocked = isActive && !!disableOff;
   const dotColor = item.color ?? '#1a73e8';
   return (
@@ -21,7 +23,7 @@ export function Chip({ item, isActive, disableOff, onToggle }: ChipProps) {
       type="button"
       aria-pressed={isActive}
       disabled={blocked}
-      title={blocked ? 'Pelo menos uma curva precisa ficar visível' : undefined}
+      title={blocked ? t('chart.keep_one_visible') : undefined}
       onClick={() => onToggle(item.id)}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: '6px',

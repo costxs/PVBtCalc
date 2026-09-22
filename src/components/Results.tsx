@@ -1,3 +1,5 @@
+import { localizeNumberText } from "../tools/parseDecimal";
+import { useT } from "../i18n";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../redux/store";
 import { useEffect, useState } from "react";
@@ -22,7 +24,8 @@ const MARK_WARN = SEVERITY_COLORS.warn;
  *   - nada   -> null
  */
 function PointMarker({ status, withinValidity }: { status?: string; withinValidity?: boolean }) {
-  const { level, tooltip } = pointSeverity(status, withinValidity);
+  const { t } = useT();
+  const { level, tooltip } = pointSeverity(status, withinValidity, t);
   if (level === 'none') return null;
 
   if (level === 'error') {
@@ -76,19 +79,19 @@ export default function ResultTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flowRegime, ids]);
 
+  const { t, lang } = useT();
   const isSkinTab = flowRegime === 'radial' && visibleChart === 'skin';
   const isDesignTab = flowRegime === 'radial' && visibleChart === 'design';
   const isAnalysisTab = flowRegime === 'radial' && visibleChart === 'B';
   const isCurveTab = !isSkinTab && !isDesignTab && !isAnalysisTab;
 
-  const simTable = isCurveTab ? buildSimulationTable(curve) : null;
-  const skinTable = isSkinTab ? buildSkinTable(skinEvolutionData) : null;
-  const designTable = isDesignTab ? buildDesignTable(designPlotData, payzoneThickness) : null;
+  const simTable = isCurveTab ? buildSimulationTable(curve, t) : null;
+  const skinTable = isSkinTab ? buildSkinTable(skinEvolutionData, t) : null;
+  const designTable = isDesignTab ? buildDesignTable(designPlotData, payzoneThickness, t) : null;
 
   const analysis = useSelector((state: RootState) => state.analysisResult);
-  const isPt = useSelector((state: RootState) => state.ui.language) === 'pt';
   const analysisTable = isAnalysisTab
-    ? buildAnalysisTable(analysis.status === 'ok' && analysis.regime === 'radial' ? analysis.radial : null, isPt ? 'pt' : 'en')
+    ? buildAnalysisTable(analysis.status === 'ok' && analysis.regime === 'radial' ? analysis.radial : null, t)
     : null;
 
   const table = simTable || skinTable || designTable || analysisTable!;
@@ -104,7 +107,7 @@ export default function ResultTab() {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '16px' }}>
         <span className="secnum">05</span>
         <h5 style={{ margin: 0, fontSize: '18px', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-          {isSkinTab ? 'Skin Evolution Table' : isDesignTab ? 'Design Plot Table' : isAnalysisTab ? 'Optimum Analysis Table' : 'Optimum Parameters'}
+          {isSkinTab ? t('results.title_skin') : isDesignTab ? t('results.title_design') : isAnalysisTab ? t('results.title_analysis') : t('results.title_curve')}
         </h5>
         <span style={{ flex: 1, height: '1px', background: 'var(--color-divider)' }}></span>
       </div>
@@ -113,35 +116,35 @@ export default function ResultTab() {
         <div className="flex flex-col xl:grid xl:grid-cols-2 gap-[22px] items-start">
           <div>
             <div className="field" style={{ marginBottom: '10px' }}>
-              <label>Saved run</label>
+              <label>{t('results.saved_run')}</label>
               <select className="input" value={selectedId} onChange={(e) => { handleCurve(e.target.value); setSelectedId(e.target.value) }}>
-                {regimeIds.length === 0 && <option>No saved runs yet</option>}
+                {regimeIds.length === 0 && <option>{t('results.no_saved_runs')}</option>}
                 {regimeIds.map((id) => (
                   <option key={id} value={id}>{id}</option>
                 ))}
               </select>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-green" style={{ letterSpacing: '0.06em', textTransform: 'uppercase', borderRadius: '9px', padding: '9px 18px' }} onClick={curve ? () => exportCurveAsVerticalTable(curve) : () => null}>Export</button>
-              <button className="btn btn-red" style={{ letterSpacing: '0.06em', textTransform: 'uppercase', borderRadius: '9px', padding: '9px 18px' }} onClick={handleDelete}>Delete</button>
+              <button className="btn btn-green" style={{ letterSpacing: '0.06em', textTransform: 'uppercase', borderRadius: '9px', padding: '9px 18px' }} onClick={curve ? () => exportCurveAsVerticalTable(curve) : () => null}>{t('common.export')}</button>
+              <button className="btn btn-red" style={{ letterSpacing: '0.06em', textTransform: 'uppercase', borderRadius: '9px', padding: '9px 18px' }} onClick={handleDelete}>{t('common.delete')}</button>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 14px', fontSize: '13px' }}>
-            <span className="text-muted" style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Acid system</span>
+            <span className="text-muted" style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{t('results.acid_system')}</span>
             <span>{acid || '...'}</span>
-            <span className="text-muted" style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Rock type</span>
+            <span className="text-muted" style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{t('results.rock_type')}</span>
             <span>{rock || '...'}</span>
             <span className="text-muted" style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              {optimumField === 'V_A' ? `Min acid volume (${simTable?.columns.find((c) => c.key === 'V_A')?.unit ?? 'gal'})` : 'Pore volume to bt'}
+              {optimumField === 'V_A' ? t('results.min_acid_volume', { unit: simTable?.columns.find((c) => c.key === 'V_A')?.unit ?? 'gal' }) : t('results.pore_volume_bt')}
             </span>
             <span style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', color: 'var(--color-accent-700)', lineHeight: '1.1' }}>
-              {minOptimumValue != null ? Number(minOptimumValue).toFixed(4) : '-'}
+              {minOptimumValue != null ? localizeNumberText(Number(minOptimumValue).toFixed(4), lang) : '-'}
             </span>
             {curve?.flowratePoints && curve.flowratePoints.length > 0 && (
               <>
-                <span className="text-muted" style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Flowrate sweep</span>
+                <span className="text-muted" style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{t('results.flowrate_sweep')}</span>
                 <span style={{ fontFamily: 'var(--font-heading)', fontSize: '13px', color: 'var(--color-accent-800)', alignSelf: 'center' }}>
-                  {Math.min(...curve.flowratePoints).toFixed(3)} – {Math.max(...curve.flowratePoints).toFixed(3)} {curve.flowRegime === 'radial' ? 'gal/(ft.min)' : 'cm³/min'}
+                  {localizeNumberText(Math.min(...curve.flowratePoints).toFixed(3), lang)} – {localizeNumberText(Math.max(...curve.flowratePoints).toFixed(3), lang)} {curve.flowRegime === 'radial' ? 'gal/(ft.min)' : 'cm³/min'}
                 </span>
               </>
             )}

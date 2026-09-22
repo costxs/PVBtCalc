@@ -16,6 +16,9 @@ export const sobreOModeloStyles = `
 .som-ressalva { margin: 18px 0; padding: 14px 18px; background: #fdf3e4; border-left: 3px solid #b87a33; border-radius: var(--radius-sm); }
 .som-ressalva-titulo { font: 600 13px/1.4 var(--font-heading); text-transform: uppercase; letter-spacing: 0.04em; color: #9c672a; margin-bottom: 6px; }
 .som-ressalva p { margin: 6px 0; }
+.som-infobox { margin: 18px 0 28px; padding: 14px 18px; background: var(--color-neutral-100, #f3f4f6); border-left: 3px solid var(--color-neutral-400, #9aa3ad); border-radius: var(--radius-sm); }
+.som-infobox-titulo { font: 600 13px/1.4 var(--font-heading); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-neutral-600, #565f6a); margin-bottom: 6px; }
+.som-infobox p { margin: 6px 0; }
 .som-frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.94em; line-height: 1.2; }
 .som-frac-num, .som-frac-den { padding: 0 3px; }
 .som-frac-num { border-bottom: 1px solid currentColor; }
@@ -42,6 +45,16 @@ export const Frac: React.FC<{ num: React.ReactNode; den: React.ReactNode }> = ({
 export const Ressalva: React.FC<{ titulo: string; children: React.ReactNode }> = ({ titulo, children }) => (
   <div className="som-ressalva">
     <div className="som-ressalva-titulo">{titulo}</div>
+    <div>{children}</div>
+  </div>
+);
+
+// The neutral (gray), non-warning counterpart of Ressalva: for the opening "about this
+// document" box, which is informational, not a caveat about where the implementation
+// extends the paper.
+export const InfoBox: React.FC<{ titulo: string; children: React.ReactNode }> = ({ titulo, children }) => (
+  <div className="som-infobox">
+    <div className="som-infobox-titulo">{titulo}</div>
     <div>{children}</div>
   </div>
 );

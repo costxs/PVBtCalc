@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eq, Frac, Ressalva, DocTable, SomSection } from './primitives';
+import { Eq, Frac, Ressalva, InfoBox, DocTable, SomSection } from './primitives';
 
 export const sections: SomSection[] = [
   { id: 'intro', heading: 'Introdução' },
@@ -29,6 +29,10 @@ const ContentPt: React.FC = () => (
     <p className="som-subtitle">Fundamentação Teórica e Modelagem Matemática</p>
     <p className="som-tagline">Modelo de crescimento de wormhole em acidificação de matriz — fluxo linear e radial</p>
 
+    <InfoBox titulo="Sobre este documento">
+      <p>Descreve as equações efetivamente implementadas no PVBtCalc, a procedência de cada uma e os pontos em que a implementação estende o que a referência original deduz. A referência primária é ALI e ZIAUDDIN (2019); cada equação traz, logo abaixo, a indicação da seção ou equação de origem.</p>
+    </InfoBox>
+
     <h2 id="intro">Introdução</h2>
 
     <h3 id="intro-matrix">Acidificação de matriz em carbonatos</h3>
@@ -52,20 +56,21 @@ const ContentPt: React.FC = () => (
     <h2 id="nomenclature">Nomenclatura</h2>
 
     <h3 id="nomenclature-tables">Símbolos das tabelas exportadas</h3>
-    <p>Abaixo estão as nomenclaturas das três formas de tabela, uma por tipo de gráfico, além da aba Inputs. Os cabeçalhos das colunas abreviam os símbolos do modelo; a correspondência é a seguinte.</p>
+    <p>Abaixo estão as nomenclaturas das quatro formas de tabela, uma por tipo de gráfico, além da aba Inputs. Os cabeçalhos das colunas abreviam os símbolos do modelo; a correspondência é a seguinte.</p>
 
-    <h4>Design Plot — abas "Design ⟨T⟩ K"</h4>
+    <h4>Design Plot — abas "Design ⟨T⟩ C"</h4>
     <DocTable
       headers={['Cabeçalho', 'Símbolo', 'Significado', 'Unidade']}
       rows={[
-        [<>L [ft]</>, <>l</>, <>Comprimento do wormhole — ver nota de colisão de símbolo abaixo</>, <>ft</>],
+        [<>Wormhole Length [ft]</>, <>l</>, <>Comprimento do wormhole</>, <>ft</>],
         [<>q_opt [gal/(ft.min)]</>, <>q<sub>opt</sub></>, <>Vazão ótima para aquele comprimento, normalizada por pé de zona</>, <>gal/(ft·min)</>],
         [<>V_opt [gal/ft]</>, <>V<sub>A</sub>(q<sub>opt</sub>)</>, <>Volume de ácido na vazão ótima — mesma função da coluna V<sub>A</sub>, avaliada em q<sub>opt</sub></>, <>gal/ft</>],
         [<>tbt [min]</>, <>M·τ</>, <>Tempo até breakthrough na vazão ótima — t<sub>b</sub> na nomenclatura do artigo</>, <>min</>],
-        [<>Temperatura [K]</>, <>T</>, <>Temperatura da curva</>, <>K</>],
-        [<>Nota</>, <>—</>, <>Diagnóstico da linha — ver tabela de valores abaixo</>, <>texto</>],
+        [<>Temperature [°C]</>, <>T</>, <>Temperatura da curva</>, <>°C</>],
+        [<>Note</>, <>—</>, <>Diagnóstico da linha — ver tabela de valores abaixo</>, <>texto</>],
       ]}
     />
+    <p className="sm-nota">O nome da aba segue o padrão Design ⟨T⟩ C, com a temperatura em graus Celsius e duas casas decimais — por exemplo, Design 23.89 C. Quando duas temperaturas arredondam para o mesmo nome, é acrescentado um sufixo numérico.</p>
 
     <h4>Simulation Chart — abas "Sim ⟨alvo⟩ ft"</h4>
     <DocTable
@@ -78,7 +83,7 @@ const ContentPt: React.FC = () => (
         [<>dv [m/s]</>, <>v<sub>o</sub></>, <>Velocidade de Darcy</>, <>m/s</>],
         [<>1/Da</>, <>1 / Da(λ)</>, <>Inverso do Damköhler, avaliado no comprimento alvo da curva</>, <>—</>],
         [<>tbt [s]</>, <>M·τ</>, <>Tempo até breakthrough</>, <>s</>],
-        [<>Nota</>, <>—</>, <>Diagnóstico da linha</>, <>texto</>],
+        [<>Note</>, <>—</>, <>Diagnóstico da linha</>, <>texto</>],
       ]}
     />
 
@@ -88,33 +93,50 @@ const ContentPt: React.FC = () => (
       rows={[
         [<>V_A [gal/ft]</>, <>V<sub>A</sub></>, <>Volume de ácido acumulado</>, <>gal/ft</>],
         [<>skin</>, <>S</>, <>Fator de skin — ver a seção correspondente</>, <>—</>],
-        [<>comprimento [ft]</>, <>l</>, <>Comprimento do wormhole</>, <>ft</>],
-        [<>Nota</>, <>—</>, <>Diagnóstico da linha</>, <>texto</>],
+        [<>Wormhole Length [ft]</>, <>l</>, <>Comprimento do wormhole</>, <>ft</>],
+        [<>Note</>, <>—</>, <>Diagnóstico da linha</>, <>texto</>],
       ]}
     />
 
-    <p className="sm-nota">Colisão de símbolo: a coluna L [ft] da tabela Design designa o comprimento do wormhole, que nesta nomenclatura é l minúsculo — L está reservado ao comprimento característico (1 m, constante). A mesma grandeza aparece como "comprimento [ft]" na tabela Skin e como nome de aba na Simulation.</p>
-
     <p className="sm-nota">A coluna tbt aparece nas duas tabelas e designa a mesma grandeza — o t<sub>b</sub> do artigo, definido na Seção 2 como "the breakthrough time in seconds" — mas em unidades diferentes: minutos no Design, segundos na Simulation. Atenção ao colchete antes de comparar valores entre as duas abas. Os caminhos de cálculo também diferem — no Design ela é obtida como a razão V_opt / q_opt, que equivale a M·τ pela identidade V<sub>A</sub> = M · q<sub>o</sub> · τ; na Simulation, por avaliação direta de M · τ(λ). Os dois concordam por construção, mas não compartilham código.</p>
 
-    <h4>Valores da coluna Nota</h4>
+    <h4>Optimum Analysis — aba "Analysis"</h4>
+    <DocTable
+      headers={['Cabeçalho', 'Símbolo', 'Significado', 'Unidade']}
+      rows={[
+        [<>⟨parâmetro⟩ [unidade]</>, <>—</>, <>Valor varrido. O cabeçalho acompanha o parâmetro escolhido: Temperature [°C], Porosity, Acid Concentration, Wellbore Diameter [in] ou Payzone Thickness [ft]</>, <>varia</>],
+        [<>q_opt [gal/(ft.min)]</>, <>q<sub>opt</sub></>, <>Vazão ótima naquele valor varrido, para o comprimento-alvo fixado</>, <>gal/(ft·min)</>],
+        [<>V_opt [gal/ft]</>, <>V<sub>A</sub>(q<sub>opt</sub>)</>, <>Volume de ácido no ótimo</>, <>gal/ft</>],
+        [<>tbt [min]</>, <>M·τ</>, <>Tempo até breakthrough no ótimo — é V_opt / q_opt</>, <>min</>],
+        [<>Note</>, <>—</>, <>Diagnóstico da linha</>, <>texto</>],
+      ]}
+    />
+
+    <h4>Inputs — aba "Inputs"</h4>
+    <p>Reúne os parâmetros de entrada da sessão. A temperatura aparece em uma única linha, Temperature (°C).</p>
+
+    <h4>Valores da coluna Note</h4>
     <DocTable
       headers={['Valor', 'Quando aparece']}
       rows={[
         [<>(vazio)</>, <>Linha comum, sem destaque.</>],
-        [<>Mínimo na borda da faixa simulada; q_opt = …</>, <>Simulation: o menor V<sub>A</sub> da varredura é a primeira ou a última linha — o mínimo real está fora da faixa varrida.</>],
-        [<>Mínimo na borda da faixa simulada</>, <>O mesmo caso, quando a curva não traz os metadados de q<sub>opt</sub>.</>],
-        [<>V_A mínimo desta simulação; q_opt = …</>, <>Simulation: o menor V<sub>A</sub> está no interior da faixa varrida.</>],
-        [<>V_A mínimo desta simulação</>, <>O mesmo caso, sem metadados.</>],
-        [<>Alvo ⟨t⟩ ft (L = ⟨L⟩ ft)</>, <>Design: a linha é a mais próxima de um comprimento-alvo pedido, dentro de meio passo da malha.</>],
-        [<>Alvo(s) ⟨…⟩ ft não atingido(s) — tabela termina em ⟨…⟩ ft (limite 1000 gal/ft)</>, <>Design: um ou mais alvos pedidos excedem o último comprimento tabulado. Fica na última linha.</>],
-        [<>Skin alvo (mais próximo de ⟨…⟩)</>, <>Skin: a linha é a mais próxima do skin-alvo pedido.</>],
-        [<>Skin final</>, <>Skin: nenhum skin-alvo foi definido — a nota marca o último ponto.</>],
+        [<>Minimum at the edge of the simulated range; q_opt = ⟨…⟩</>, <>Simulation: o menor V<sub>A</sub> da varredura é a primeira ou a última linha — o mínimo real está fora da faixa varrida. No modo linear, a mesma nota em cm³/min.</>],
+        [<>Minimum V_A of this simulation; q_opt = ⟨…⟩</>, <>Simulation: o menor V<sub>A</sub> está no interior da faixa varrida. No modo linear, "Minimum PVBT of this simulation".</>],
+        [<>Target ⟨t⟩ ft (Wormhole Length = ⟨l⟩ ft)</>, <>Design: a linha é a mais próxima de um comprimento-alvo pedido, dentro de meio passo da malha.</>],
+        [<>Target ⟨t⟩ ft not reached — table ends at ⟨l⟩ ft (limit 1000 gal/ft)</>, <>Design: um alvo pedido excede o último comprimento tabulado. Fica na última linha.</>],
+        [<>Targets ⟨t₁⟩ and ⟨t₂⟩ ft not reached — table ends at ⟨l⟩ ft (limit 1000 gal/ft)</>, <>Design: dois alvos não alcançados — unidos por "and", sem vírgula.</>],
+        [<>Targets ⟨t₁⟩, ⟨t₂⟩ and ⟨t₃⟩ ft not reached — table ends at ⟨l⟩ ft (limit 1000 gal/ft)</>, <>Design: três ou mais — vírgula entre os primeiros, "and" antes do último. Todos os alvos perdidos entram numa nota só, na última linha.</>],
+        [<>Outside calibrated range (⟨mín⟩–⟨máx⟩ °C)</>, <>Analysis: o valor varrido está fora da faixa de temperatura calibrada do modelo. A nota traz a faixa calibrada, não o valor rejeitado.</>],
+        [<>No interior optimum — point omitted</>, <>Analysis: a varredura não encontrou mínimo no interior da faixa naquele ponto. String fixa, sem valores interpolados.</>],
+        [<>Series truncated — ⟨valor⟩ ⟨unidade⟩ exceeds the 1000 gal/ft limit</>, <>Analysis: o volume no ótimo passou do teto físico a partir daquele ponto. A unidade acompanha o parâmetro varrido — por exemplo, Series truncated — 36.85 °C exceeds the 1000 gal/ft limit ou Series truncated — 0.62 fraction exceeds the 1000 gal/ft limit.</>],
+        [<>Target skin (closest to ⟨…⟩)</>, <>Skin: a linha é a mais próxima do skin-alvo pedido.</>],
+        [<>Final skin</>, <>Skin: nenhum skin-alvo foi definido — a nota marca o último ponto.</>],
       ]}
-      caption="Mais de uma nota pode aparecer na mesma linha, concatenadas por “; ”."
+      caption='Mais de uma nota pode aparecer na mesma linha, concatenadas por "; ". O arquivo exportado é sempre gerado em inglês, independente do idioma da interface.'
     />
 
     <h2 id="properties">Propriedades do sistema ácido-rocha</h2>
+    <p>A interface e os arquivos exportados usam graus Celsius. A correlação da Eq. 18, porém, é ajustada em Kelvin, e é em Kelvin que o cálculo é feito: a conversão ocorre apenas na entrada e na exibição. A faixa calibrada, 283–478 K, corresponde a 9,85–204,85 °C.</p>
     <p>O coeficiente de difusão depende da temperatura e da concentração, por correlação empírica (T em Kelvin):</p>
     <Eq n="18" fonte="ALI; ZIAUDDIN (2019), Eq. 18, Seção 2.">
       D<sub>m</sub> = exp( <Frac num="−2270" den="T" /> + 1,326 · C<sub>Ao</sub> − 12,11 )
@@ -194,6 +216,8 @@ const ContentPt: React.FC = () => (
       <p>Para o regime radial, o artigo oferece validação de outra natureza, descrita na Seção 6: comparação contra tratamentos de campo documentados por BURTON et al. (2018), cujos volumes variam de 5 a 700 gal/ft, com mediana de 75 gal/ft. Volumes calculados muito acima dessa faixa indicam configuração fora do domínio prático.</p>
     </Ressalva>
 
+    <p>Há ainda um segundo limite, de temperatura. A correlação de difusão foi ajustada sobre dados entre 9,85 e 204,85 °C. Fora dessa faixa o PVBtCalc omite o ponto e registra a nota correspondente, em vez de extrapolar a correlação.</p>
+
     <h2 id="quantities">Grandezas reportadas</h2>
     <DocTable
       headers={['Grandeza', 'Significado', 'Unidade']}
@@ -218,6 +242,7 @@ const ContentPt: React.FC = () => (
       <li>Selecione as curvas a incluir. O arquivo gerado reúne, para cada uma: bloco de cabeçalho com rocha, sistema ácido, concentração, porosidade, temperatura e geometria; a imagem de cada gráfico gerado; e a tabela correspondente, com os rótulos e unidades exibidos na tela.</li>
       <li>Confirme para baixar.</li>
     </ol>
+    <p className="sm-nota">O arquivo exportado é sempre gerado em inglês, mesmo com a interface em português, e sempre com temperatura em graus Celsius.</p>
 
     <h2 id="references">Referências</h2>
     <p className="sm-nota">A referência primária é a única consultada diretamente. As demais são citadas conforme discutidas no artigo; conferir os dados bibliográficos completos na lista de referências do próprio artigo antes de reaproveitá-las em documento formal.</p>
