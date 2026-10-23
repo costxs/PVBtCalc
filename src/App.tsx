@@ -9,10 +9,23 @@ import SobreOModelo from "./components/SobreOModelo"
 import ExportTab from "./components/ExportTab"
 import SimulationPersistence from "./components/SimulationPersistence"
 import FooterSection from "./components/Footer"
-import { useState } from "react"
+import LoginScreen from "./components/Login"
+import { useEffect, useState } from "react"
+import { useDispatch, useSelector } from "react-redux"
+import { AppDispatch, RootState } from "./redux/store"
+import { restoreSession } from "./redux/user/slice"
 
 function App() {
   const [currentTab, setCurrentTab] = useState('runner');
+  const dispatch = useDispatch<AppDispatch>();
+  const { profile, ready } = useSelector((state: RootState) => state.user);
+
+  useEffect(() => {
+    dispatch(restoreSession());
+  }, [dispatch]);
+
+  if (!ready) return null;
+  if (!profile) return <LoginScreen />;
 
   return (
     <>

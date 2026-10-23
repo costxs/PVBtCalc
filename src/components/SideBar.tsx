@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useT } from "../i18n";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setLanguage } from "../redux/ui/slice";
+import { logout } from "../redux/user/slice";
+import { AppDispatch, RootState } from "../redux/store";
 import FeedbackModal from "./FeedbackModal";
 
 interface SidebarProps {
@@ -13,9 +15,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
   const { t, lang } = useT();
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
+  const { username, profile } = useSelector((state: RootState) => state.user);
 
   const toggleLanguage = () => dispatch(setLanguage(lang === 'pt' ? 'en' : 'pt'));
+  const handleLogout = () => {
+    dispatch(logout());
+  };
+
   return (
     <>
       <aside style={{ background: 'var(--color-accent-900)', color: '#eef1f4', display: 'flex', flexDirection: 'column', padding: '22px 18px 18px' }}>
@@ -58,6 +65,41 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l6 6"></path><path d="M4 14l6-6 2-3"></path><path d="M2 5h12"></path><path d="M7 2h1"></path><path d="M22 22l-5-10-5 10"></path><path d="M14 18h6"></path></svg>
             {t("sidebar.traduzir_para_portugues")}
           </button>
+
+          <div style={{ marginTop: '10px', paddingTop: '12px', borderTop: '1px solid rgba(238, 241, 244, 0.16)', display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '10px', paddingRight: '6px' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ font: '400 10px/1.3 var(--font-body)', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(238, 241, 244, 0.5)' }}>
+                {t("sidebar.user_label")}
+              </div>
+              <div style={{ fontSize: '13px', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={profile?.email || username || ''}>
+                {username || profile?.email || 'lcpetro.lab'}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                border: '1px solid rgba(238, 241, 244, 0.3)',
+                background: 'rgba(238, 241, 244, 0.06)',
+                color: 'rgba(238, 241, 244, 0.88)',
+                fontFamily: 'var(--font-heading)',
+                fontSize: '12px',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                padding: '6px 10px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                width: '100%',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              {t("sidebar.logout")}
+            </button>
+          </div>
         </nav>
       </aside>
       <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
