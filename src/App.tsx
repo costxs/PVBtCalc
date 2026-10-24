@@ -41,7 +41,7 @@ function App() {
                 <ExpSection />
                 <OptimalAnalysis />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '26px', minWidth: 0, borderRadius: '9px', height: 0, minHeight: '100%' }}>
+              <div className="lg:h-0 lg:min-h-full" style={{ display: 'flex', flexDirection: 'column', gap: '26px', minWidth: 0, borderRadius: '9px' }}>
                 <ChartComponent />
                 <ResultTab />
               </div>
