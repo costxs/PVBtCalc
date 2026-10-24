@@ -65,6 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l6 6"></path><path d="M4 14l6-6 2-3"></path><path d="M2 5h12"></path><path d="M7 2h1"></path><path d="M22 22l-5-10-5 10"></path><path d="M14 18h6"></path></svg>
             {t("sidebar.traduzir_para_portugues")}
           </button>
+          {profile?.is_admin && (
+            <a href="#admin" onClick={(e) => { e.preventDefault(); setCurrentTab('admin'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', textDecoration: 'none', color: currentTab === 'admin' ? '#fff' : 'rgba(238, 241, 244, 0.72)', background: currentTab === 'admin' ? 'rgba(148, 188, 227, 0.16)' : 'transparent', borderLeft: `2px solid ${currentTab === 'admin' ? 'var(--color-accent-400)' : 'transparent'}`, fontFamily: 'var(--font-heading)', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              {t("sidebar.admin")}
+            </a>
+          )}
 
           <div style={{ marginTop: '10px', paddingTop: '12px', borderTop: '1px solid rgba(238, 241, 244, 0.16)', display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '10px', paddingRight: '6px' }}>
             <div style={{ minWidth: 0 }}>

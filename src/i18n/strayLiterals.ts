@@ -46,6 +46,8 @@ export const EXEMPT_PATHS = [
   /components\/footerContent\.ts$/,
   // the exported workbook's text: fixed English constants, pinned to shared-fixtures/export_text.json
   /tools\/exportText\.ts$/,
+  // admin-only visits report (PDF/Excel): fixed Portuguese document text
+  /tools\/adminReport\.ts$/,
   /\.test\.tsx?$/,
   /vite-env\.d\.ts$/,
 ];

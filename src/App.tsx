@@ -8,6 +8,7 @@ import OptimalAnalysis from "./components/OptimumAnalysis"
 import SobreOModelo from "./components/SobreOModelo"
 import ExportTab from "./components/ExportTab"
 import SimulationPersistence from "./components/SimulationPersistence"
+import AdminPanel from "./components/AdminPanel"
 import FooterSection from "./components/Footer"
 import LoginScreen from "./components/Login"
 import { useEffect, useState } from "react"
@@ -49,6 +50,10 @@ function App() {
           ) : currentTab === 'export' ? (
             <main style={{ backgroundColor: 'var(--color-bg)' }}>
               <ExportTab onGoToRunner={() => setCurrentTab('runner')} />
+            </main>
+          ) : currentTab === 'admin' && profile.is_admin ? (
+            <main style={{ backgroundColor: 'var(--color-bg)' }}>
+              <AdminPanel />
             </main>
           ) : (
             <main style={{ backgroundColor: 'var(--color-bg)' }}>
