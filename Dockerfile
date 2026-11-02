@@ -20,7 +20,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copia o build estatico gerado para o diretorio padrao do Nginx
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expõe a porta 80 padrao do Nginx
-EXPOSE 80
+# Expõe as portas comuns (80 padrao, 3000 Coolify/Node, 8000)
+EXPOSE 80 3000 8000 8080
 
 CMD ["nginx", "-g", "daemon off;"]
