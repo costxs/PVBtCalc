@@ -7,6 +7,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
+# Endereco do backend, embutido no build pelo Vite (definir no Coolify como variavel de build)
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # Copia o codigo-fonte e compila os arquivos estaticos
 COPY . .
 RUN npm run build
