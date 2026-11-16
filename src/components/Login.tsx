@@ -666,6 +666,20 @@ export default function LoginScreen() {
       </motion.div>
       )}
 
+      {gate.stage === "done" && (
+        <button
+          type="button"
+          onClick={gate.replay}
+          style={{
+            position: "fixed", bottom: "16px", left: "50%", transform: "translateX(-50%)",
+            background: "none", border: "none", color: "#64748b", fontSize: "12px",
+            textDecoration: "underline", cursor: "pointer", padding: "4px",
+          }}
+        >
+          {t("welcome.replay")}
+        </button>
+      )}
+
       {gate.stage === "splash" && (
         <WelcomeSplash onDismiss={gate.dismissSplash} leaving={gate.splashLeaving} />
       )}

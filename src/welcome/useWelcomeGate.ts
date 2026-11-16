@@ -27,8 +27,12 @@ const LEAVE_MS = 480;
 const reducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
+// "?intro" no endereço mostra a abertura mesmo para quem já entrou por este navegador.
+const forcedByUrl = () =>
+  typeof window !== "undefined" && new URLSearchParams(window.location.search).has("intro");
+
 export function useWelcomeGate({ hasSession, hasRememberedEmail, setAuthTab, focusFirstField }: Options) {
-  const firstVisit = !hasSession && !hasRememberedEmail;
+  const firstVisit = forcedByUrl() || (!hasSession && !hasRememberedEmail);
 
   const [stage, setStage] = useState<WelcomeStage>(firstVisit ? "splash" : "done");
   const [leaving, setLeaving] = useState(false);
@@ -53,6 +57,8 @@ export function useWelcomeGate({ hasSession, hasRememberedEmail, setAuthTab, foc
   const chooseRegister = useCallback(() => choose("register"), [choose]);
   const chooseSignIn = useCallback(() => choose("signin"), [choose]);
   const closeDialog = useCallback(() => setStage("done"), []);
+  /** mostra a abertura de novo (link "Ver apresentação" no login) */
+  const replay = useCallback(() => setStage("splash"), []);
 
-  return { stage, splashLeaving: leaving, dismissSplash, chooseRegister, chooseSignIn, closeDialog };
+  return { stage, splashLeaving: leaving, dismissSplash, chooseRegister, chooseSignIn, closeDialog, replay };
 }

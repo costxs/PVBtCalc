@@ -474,4 +474,5 @@ export const pt: Record<keyof typeof en, string> = {
   "welcome.dialog.existing_title": "Já tenho conta",
   "welcome.dialog.existing_body": "Entre para retomar suas simulações salvas.",
   "welcome.dialog.close": "Fechar",
+  "welcome.replay": "Ver apresentação",
 };

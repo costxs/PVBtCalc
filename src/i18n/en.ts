@@ -474,4 +474,5 @@ export const en = {
   "welcome.dialog.existing_title": "I already have an account",
   "welcome.dialog.existing_body": "Sign in to pick up your saved simulations.",
   "welcome.dialog.close": "Close",
+  "welcome.replay": "Watch the intro",
 } as const satisfies Record<string, string>;
