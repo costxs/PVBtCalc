@@ -366,7 +366,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
       </div>
 
       {groups.length === 0 ? (
-        <div style={{ padding: "24px", textAlign: "center", color: "var(--color-neutral-600)", fontSize: "14px" }}>
+        <div data-tour="exp.empty" style={{ padding: "24px", textAlign: "center", color: "var(--color-neutral-600)", fontSize: "14px" }}>
           {t("export.no_simulations_calculated_yet_go")}{" "}
           <button className="btn-ghost" style={{ fontSize: "14px", padding: 0 }} onClick={onGoToRunner}>RUNNER</button>.
         </div>

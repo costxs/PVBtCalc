@@ -1213,6 +1213,7 @@ const ChartComponent = () => {
   const CHART_ANCHORS: Record<string, string> = {
     'linear:A': 'lin.chart',
     'radial:A': 'rad.chartSim',
+    'radial:design': 'rad.chartDesign',
     'radial:B': 'rad.chartAnalysis',
     'radial:skin': 'rad.chartSkin',
   };

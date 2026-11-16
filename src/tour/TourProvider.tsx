@@ -25,8 +25,15 @@ interface Props {
   onPrepare: (track: TourTrack) => void;
 }
 
-/** quanto esperar uma âncora aparecer (troca de aba, dado chegando) antes de pular o passo */
+/** sem alvo reserva: quanto esperar a âncora aparecer (troca de aba) antes de pular o passo */
 const ANCHOR_WAIT_MS = 900;
+/** com alvo reserva: quando passar a mostrá-lo, e até quando continuar esperando o alvo real
+ *  (o Design Plot, por exemplo, é buscado no servidor quando a aba abre) */
+const FALLBACK_AFTER_MS = 350;
+const PRIMARY_WAIT_MS = 10000;
+
+/** o que o balão mostra: qual passo e em qual alvo (o real ou o reserva) */
+interface Shown { index: number; anchor: string | null; usingFallback: boolean }
 
 export function TourProvider({ children, onChartView, onPrepare }: Props) {
   const profileId = useSelector((s: RootState) => s.user.profile?.id ?? null);
@@ -38,8 +45,8 @@ export function TourProvider({ children, onChartView, onPrepare }: Props) {
   const [ready, setReady] = useState(false);
   const [active, setActive] = useState<TourTrack | null>(null);
   const [index, setIndex] = useState(0);
-  // passo que o balão mostra; fica no anterior enquanto a âncora do novo não aparece
-  const [shownIndex, setShownIndex] = useState<number | null>(null);
+  // o balão fica no passo anterior enquanto a âncora do novo não aparece
+  const [shown, setShown] = useState<Shown | null>(null);
   const direction = useRef<1 | -1>(1);
 
   /* ------------------------------------------------------- persistência */
@@ -70,7 +77,7 @@ export function TourProvider({ children, onChartView, onPrepare }: Props) {
     const first = TOURS[track].steps[0];
     const view = first.chart ?? TOURS[track].initialChart;
     if (view) onChartView(view);
-    setShownIndex(null);
+    setShown(null);
     setIndex(0);
     setActive(track);
   }, [onChartView]);
@@ -94,7 +101,7 @@ export function TourProvider({ children, onChartView, onPrepare }: Props) {
     markDone(active);
     setActive(null);
     setIndex(0);
-    setShownIndex(null);
+    setShown(null);
   }, [active, markDone]);
 
   const goTo = useCallback((i: number, dir: 1 | -1) => {
@@ -110,24 +117,55 @@ export function TourProvider({ children, onChartView, onPrepare }: Props) {
   const next = useCallback(() => goTo(index + 1, 1), [goTo, index]);
   const prev = useCallback(() => { if (index > 0) goTo(index - 1, -1); }, [goTo, index]);
 
-  /* Âncora ausente não pode travar o tour: espera um pouco (a aba pode estar trocando)
-     e, se não aparecer, pula o passo na direção em que a pessoa ia e avisa no console. */
+  /* Âncora ausente não pode travar o tour.
+     - Se o passo tem alvo reserva (elemento que só existe depois do cálculo), mostra o
+       passo nele, com uma nota, e continua esperando o alvo real; quando ele aparece
+       (cálculo feito, dado carregado), o destaque passa para ele.
+     - Sem alvo reserva, espera um pouco e pula o passo na direção em que a pessoa ia. */
   useEffect(() => {
     if (!active) return;
     const step = steps[index];
     if (!step) return;
-    if (step.anchor === null || findAnchors(step.anchor).length) { setShownIndex(index); return; }
+    const primary = step.anchor;
+    if (primary === null || findAnchors(primary).length) {
+      setShown({ index, anchor: primary, usingFallback: false });
+      return;
+    }
     const started = Date.now();
+    let onFallback = false;
     const timer = window.setInterval(() => {
-      if (findAnchors(step.anchor!).length) { window.clearInterval(timer); setShownIndex(index); return; }
-      if (Date.now() - started < ANCHOR_WAIT_MS) return;
+      const elapsed = Date.now() - started;
+      if (findAnchors(primary).length) {
+        window.clearInterval(timer);
+        setShown({ index, anchor: primary, usingFallback: false });
+        return;
+      }
+      const fallbackReady = !!step.fallback && findAnchors(step.fallback).length > 0;
+      if (!onFallback && fallbackReady && elapsed >= FALLBACK_AFTER_MS) {
+        onFallback = true;
+        setShown({ index, anchor: step.fallback!, usingFallback: true });
+      }
+      if (onFallback) {
+        if (elapsed >= PRIMARY_WAIT_MS) window.clearInterval(timer);
+        return;
+      }
+      if (elapsed < ANCHOR_WAIT_MS) return;
       window.clearInterval(timer);
-      console.warn(`[tour] âncora não encontrada: "${step.anchor}" — passo pulado`);
+      console.warn(`[tour] âncora não encontrada: "${primary}" — passo pulado`);
       const dir = index === 0 ? 1 : direction.current;
       goTo(index + dir, dir);
     }, 100);
     return () => window.clearInterval(timer);
   }, [active, steps, index, goTo]);
+
+  const shownStep = useMemo(() => {
+    if (!shown) return null;
+    const step = steps[shown.index];
+    if (!step) return null;
+    return shown.usingFallback
+      ? { ...step, anchor: shown.anchor, body: `${step.body} ${step.fallbackNote ?? ""}`.trim() }
+      : step;
+  }, [shown, steps]);
 
   const api = useMemo<TourApi>(
     () => ({ startTour, maybeStart, ready, active }),
@@ -137,11 +175,11 @@ export function TourProvider({ children, onChartView, onPrepare }: Props) {
   return (
     <TourContext.Provider value={api}>
       {children}
-      {active && shownIndex !== null && steps[shownIndex] && (
+      {active && shown && shownStep && (
         <TourOverlay
           key={active}
-          step={steps[shownIndex]}
-          index={shownIndex}
+          step={shownStep}
+          index={shown.index}
           total={steps.length}
           onNext={next}
           onPrev={prev}

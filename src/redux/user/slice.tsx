@@ -19,6 +19,19 @@ interface ApiSession {
 // conhece o Supabase. O access token fica so em memoria; apenas o refresh token
 // persiste (localStorage) para restaurar a sessao ao recarregar a pagina.
 const REFRESH_KEY = "pvbtcalc.refresh";
+// E-mail do último acesso neste navegador: preenche o login e decide se a tela de
+// entrada aparece (ela é só para quem nunca entrou por aqui). O logout não o apaga.
+const LAST_EMAIL_KEY = "pvbtcalc.lastEmail";
+
+export function getRememberedEmail(): string {
+  try { return localStorage.getItem(LAST_EMAIL_KEY) ?? ""; } catch { return ""; }
+}
+export function hasStoredSession(): boolean {
+  try { return Boolean(localStorage.getItem(REFRESH_KEY)); } catch { return false; }
+}
+function rememberEmail(email: string) {
+  try { localStorage.setItem(LAST_EMAIL_KEY, email); } catch { /* storage indisponivel */ }
+}
 
 const storage = {
   get: () => {
@@ -97,6 +110,7 @@ export const signUp = createAsyncThunk(
       body: { name: name.trim(), email: email.trim(), password },
     });
     if (!data || data.confirm_email || !data.session) return { confirmEmail: true as const };
+    rememberEmail(email.trim());
     storage.set(data.session.refresh_token);
     const session = toSession(data.session);
     dispatch(logVisit(session));
@@ -110,6 +124,7 @@ export const signIn = createAsyncThunk(
   async ({ email, password }: { email: string; password: string }, { dispatch }) => {
     const data = await authFetch<ApiSession>("/login", { body: { email: email.trim(), password } });
     if (!data) throw new Error("auth.err_login_failed");
+    rememberEmail(email.trim());
     storage.set(data.refresh_token);
     const session = toSession(data);
     dispatch(logVisit(session));

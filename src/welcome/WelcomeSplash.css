@@ -1,0 +1,79 @@
+/* Tela de entrada. Branca por decisão: é a única parte do app que não é ferramenta.
+   Troque os literais pelos tokens do projeto se já existirem. */
+
+.pvbt-splash{
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding-inline: max(24px, env(safe-area-inset-left, 0px)) max(24px, env(safe-area-inset-right, 0px));
+  padding-block: 32px;
+  cursor: pointer;
+}
+.pvbt-splash:focus-visible{ outline: none }
+
+.pvbt-splash.is-leaving{
+  opacity: 0;
+  transition: opacity .5s ease;
+  pointer-events: none;
+}
+
+.pvbt-splash-fig{ margin: 0; width: min(380px, 100%) }
+.pvbt-splash-fig svg{ display: block; width: 100%; height: auto }
+
+.sp-axis{ stroke: #E4E9F1; stroke-width: 1.5 }
+
+.sp-tick{
+  fill: #AEB9CA; font-size: 9px; font-family: inherit;
+  opacity: 0; animation: spFade .5s ease forwards .35s;
+}
+
+/* o traço é desenhado com dashoffset: nenhuma biblioteca, uns poucos kilobytes */
+.sp-curve{
+  fill: none; stroke-width: 3; stroke-linecap: round;
+  stroke-dasharray: 420; stroke-dashoffset: 420;
+  animation: spDraw 1.5s cubic-bezier(.45,.05,.25,1) forwards .25s;
+}
+.sp-c1{ stroke: #16203A }
+.sp-c2{ stroke: #2F9E87; animation-delay: .45s }
+
+.sp-dot{ opacity: 0; transform-origin: center; animation: spPop .5s cubic-bezier(.3,1.5,.5,1) forwards 1.65s }
+.sp-lab{ opacity: 0; animation: spFade .5s ease forwards 1.9s; fill: #6B7A93; font-size: 11px; font-family: inherit }
+
+@keyframes spDraw{ to{ stroke-dashoffset: 0 } }
+@keyframes spPop { from{ opacity: 0; transform: scale(.3) } to{ opacity: 1; transform: scale(1) } }
+@keyframes spFade{ to{ opacity: 1 } }
+@keyframes spRise{ from{ opacity: 0; transform: translateY(8px) } to{ opacity: 1; transform: none } }
+
+.pvbt-splash-copy{
+  text-align: center; max-width: 50ch; color: #16203A;
+  opacity: 0; animation: spRise .55s ease forwards 1.75s;
+}
+.pvbt-splash-copy h1{
+  font-size: clamp(23px, 4.4vw, 30px); font-weight: 700;
+  letter-spacing: -.02em; margin: 0 0 10px; text-wrap: balance;
+}
+.pvbt-splash-copy h1 span{ color: #2F5FE0 }
+.pvbt-splash-copy p{ margin: 0; font-size: 14.5px; color: #6B7A93; line-height: 1.6 }
+
+.pvbt-splash-go{
+  opacity: 0; animation: spFade .5s ease forwards 2.5s;
+  font-size: 12px; color: #9AA6B8; letter-spacing: .09em; text-transform: uppercase;
+  text-align: center;
+}
+
+/* sem movimento: a curva já aparece pronta */
+@media (prefers-reduced-motion: reduce){
+  .pvbt-splash .sp-curve{ animation: none; stroke-dashoffset: 0 }
+  .pvbt-splash .sp-dot,
+  .pvbt-splash .sp-lab,
+  .pvbt-splash .sp-tick,
+  .pvbt-splash-copy,
+  .pvbt-splash-go{ animation: none; opacity: 1; transform: none }
+  .pvbt-splash.is-leaving{ transition: none }
+}

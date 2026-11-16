@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,26 +11,40 @@ import {
   FiCheckCircle,
   FiAlertCircle,
 } from "react-icons/fi";
-import { clearMessages, signIn, signUp } from "../redux/user/slice";
+import { clearMessages, getRememberedEmail, hasStoredSession, signIn, signUp } from "../redux/user/slice";
+import { setLanguage } from "../redux/ui/slice";
 import { AppDispatch, RootState } from "../redux/store";
 import { translateIfKey, useT } from "../i18n";
+import WelcomeSplash from "../welcome/WelcomeSplash";
+import WelcomeDialog from "../welcome/WelcomeDialog";
+import { useWelcomeGate, type AuthTab } from "../welcome/useWelcomeGate";
 
 export default function LoginScreen() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const dispatch = useDispatch<AppDispatch>();
   const { loading, error, notice } = useSelector((state: RootState) => state.user);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(getRememberedEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState("");
 
-  const switchMode = (m: "login" | "register") => {
+  const switchMode = useCallback((m: "login" | "register") => {
     setMode(m);
     setLocalError("");
     dispatch(clearMessages());
-  };
+  }, [dispatch]);
+
+  // Tela de entrada (splash + diálogo): só para quem nunca entrou por este navegador.
+  const [firstVisitInfo] = useState(() => ({ hasSession: hasStoredSession(), hasRememberedEmail: Boolean(getRememberedEmail()) }));
+  const gate = useWelcomeGate({
+    ...firstVisitInfo,
+    setAuthTab: useCallback((tab: AuthTab) => switchMode(tab === "register" ? "register" : "login"), [switchMode]),
+    focusFirstField: useCallback((tab: AuthTab) => {
+      document.getElementById(tab === "register" ? "auth-full-name" : "auth-email")?.focus();
+    }, []),
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +91,21 @@ export default function LoginScreen() {
         boxSizing: "border-box",
       }}
     >
+      <button
+        type="button"
+        data-lang-toggle
+        onClick={() => dispatch(setLanguage(lang === "pt" ? "en" : "pt"))}
+        style={{
+          position: "fixed", top: "14px", right: "16px", zIndex: 1001,
+          border: "1px solid #DCE3EE", background: "rgba(255,255,255,0.9)", color: "#475569",
+          borderRadius: "999px", padding: "6px 12px", fontSize: "12px", fontWeight: 600,
+          letterSpacing: "0.04em", cursor: "pointer",
+        }}
+      >
+        {t("welcome.lang_toggle")}
+      </button>
+
+      {gate.stage !== "splash" && (
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -635,6 +664,14 @@ export default function LoginScreen() {
           )}
         </div>
       </motion.div>
+      )}
+
+      {gate.stage === "splash" && (
+        <WelcomeSplash onDismiss={gate.dismissSplash} leaving={gate.splashLeaving} />
+      )}
+      {gate.stage === "dialog" && (
+        <WelcomeDialog onRegister={gate.chooseRegister} onSignIn={gate.chooseSignIn} onClose={gate.closeDialog} />
+      )}
     </div>
   );
 }

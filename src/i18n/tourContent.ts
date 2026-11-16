@@ -123,6 +123,8 @@ const linear: TourDefinition = {
     {
       id: "validity",
       anchor: "lin.banner",
+      fallback: "lin.chart",
+      fallbackNote: "(No momento não há pontos fora da faixa, por isso o aviso não está na tela; quando houver, ele aparece acima do gráfico.)",
       chart: "lsim",
       title: "Janela de validade",
       body:
@@ -249,6 +251,8 @@ const radial: TourDefinition = {
     {
       id: "window",
       anchor: "rad.window",
+      fallback: "rad.sweep",
+      fallbackNote: "(A lista aparece aqui, logo abaixo da varredura, depois do cálculo.)",
       chart: "rsim",
       title: "Janela de varredura recomendada",
       body:
@@ -307,6 +311,8 @@ const radial: TourDefinition = {
     {
       id: "validity",
       anchor: "rad.banner",
+      fallback: "rad.chartSim",
+      fallbackNote: "(No momento não há pontos fora da faixa, por isso o aviso não está na tela; quando houver, ele aparece acima do gráfico.)",
       chart: "rsim",
       title: "Janela de validade",
       body:
@@ -317,6 +323,8 @@ const radial: TourDefinition = {
     {
       id: "designPlot",
       anchor: "rad.designLegend",
+      fallback: "rad.chartDesign",
+      fallbackNote: "(Os chips de temperatura e \"Mostrar\" aparecem acima do gráfico depois do cálculo.)",
       chart: "rdes",
       title: "Design Plot",
       body:
@@ -327,6 +335,8 @@ const radial: TourDefinition = {
     {
       id: "guidedReading",
       anchor: "rad.readFrom",
+      fallback: "rad.chartDesign",
+      fallbackNote: "(A leitura guiada aparece acima do gráfico depois do cálculo.)",
       chart: "rdes",
       title: "Leitura guiada",
       body:
@@ -389,6 +399,8 @@ const exportTour: TourDefinition = {
     {
       id: "selectAll",
       anchor: "exp.selectAll",
+      fallback: "exp.empty",
+      fallbackNote: "(Esta parte aparece quando há simulação calculada nesta sessão.)",
       title: "Selecionar as simulações",
       body:
         "Marque as simulações a incluir ou use \"Selecionar tudo\"; o número entre parênteses é " +
@@ -397,6 +409,8 @@ const exportTour: TourDefinition = {
     {
       id: "table",
       anchor: "exp.table",
+      fallback: "exp.empty",
+      fallbackNote: "(Esta parte aparece quando há simulação calculada nesta sessão.)",
       title: "Lista da sessão",
       body:
         "Cada simulação aparece com regime, rocha, ácido, temperatura e alvos. A marca ATIVA " +
@@ -406,6 +420,8 @@ const exportTour: TourDefinition = {
     {
       id: "formats",
       anchor: "exp.formats",
+      fallback: "exp.empty",
+      fallbackNote: "(Esta parte aparece quando há simulação calculada nesta sessão.)",
       title: "Formatos",
       body:
         "Planilha completa (.xlsx): no radial, abas Inputs, Design, Sim, Skin e Chart Summary; " +
@@ -416,6 +432,8 @@ const exportTour: TourDefinition = {
     {
       id: "limits",
       anchor: "exp.limits",
+      fallback: "exp.empty",
+      fallbackNote: "(Esta parte aparece quando há simulação calculada nesta sessão.)",
       title: "Restrições",
       body:
         "No linear, a planilha completa junta todas as curvas selecionadas num arquivo, e " +
@@ -425,6 +443,8 @@ const exportTour: TourDefinition = {
     {
       id: "folder",
       anchor: "exp.folder",
+      fallback: "exp.empty",
+      fallbackNote: "(Esta parte aparece quando há simulação calculada nesta sessão.)",
       title: "Pasta de destino",
       body:
         "Escolha uma pasta (Chrome ou Edge) ou deixe sem escolher para usar a pasta de " +
@@ -433,6 +453,8 @@ const exportTour: TourDefinition = {
     {
       id: "button",
       anchor: "exp.button",
+      fallback: "exp.empty",
+      fallbackNote: "(Esta parte aparece quando há simulação calculada nesta sessão.)",
       title: "Exportar",
       body:
         "Gera os arquivos. As figuras são desenhadas no servidor, então o download pode levar " +
@@ -446,6 +468,8 @@ export const TOURS: Record<TourTrack, TourDefinition> = { linear, radial, export
 /** todos os data-tour citados — usado pelo teste-guarda */
 export const ALL_ANCHORS: string[] = [
   ...new Set(
-    Object.values(TOURS).flatMap((t) => t.steps.map((s) => s.anchor).filter((a): a is string => !!a)),
+    Object.values(TOURS).flatMap((t) =>
+      t.steps.flatMap((s) => [s.anchor, s.fallback]).filter((a): a is string => !!a),
+    ),
   ),
 ];

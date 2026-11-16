@@ -1,0 +1,65 @@
+.pvbt-welcome-scrim{
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(18, 28, 50, .52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px;
+  animation: wFade .18s ease-out;
+}
+
+.pvbt-welcome-box{
+  width: min(430px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: #fff;
+  color: #16203A;
+  border-radius: 16px;
+  padding: 30px 28px 24px;
+  box-shadow: 0 24px 60px rgba(14, 24, 46, .3);
+  animation: wRise .24s cubic-bezier(.2,.7,.3,1);
+}
+
+.pvbt-welcome-box h2{
+  margin: 0 0 7px;
+  font-size: 21px; font-weight: 700; letter-spacing: -.01em; text-wrap: balance;
+}
+.pvbt-welcome-lede{ margin: 0 0 22px; font-size: 13.5px; color: #6B7A93; line-height: 1.5 }
+
+.pvbt-welcome-choices{ display: flex; flex-direction: column; gap: 10px }
+
+.pvbt-welcome-choice{
+  display: flex; align-items: flex-start; gap: 13px;
+  width: 100%; text-align: left; font: inherit;
+  background: #fff; border: 1px solid #DCE3EE; border-radius: 12px;
+  padding: 15px 16px; cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.pvbt-welcome-choice:hover{ border-color: #2F5FE0; background: #F7F9FE }
+.pvbt-welcome-choice:focus-visible{ outline: 2px solid #2F5FE0; outline-offset: 2px }
+
+.pvbt-welcome-choice .ic{
+  flex: none; width: 34px; height: 34px; border-radius: 9px;
+  display: grid; place-items: center; background: #EAF0FD; color: #2F5FE0;
+}
+.pvbt-welcome-choice.is-alt .ic{ background: #E7F4F0; color: #2F9E87 }
+
+.pvbt-welcome-choice .tx{ min-width: 0 }
+.pvbt-welcome-choice .t{ display: block; font-size: 14.5px; font-weight: 600; margin-bottom: 2px }
+.pvbt-welcome-choice .d{ display: block; font-size: 12.5px; color: #6B7A93; line-height: 1.45 }
+
+.pvbt-welcome-later{ margin-top: 16px; text-align: center }
+.pvbt-welcome-later button{
+  font: inherit; font-size: 12.5px; color: #6B7A93;
+  background: none; border: 0; padding: 4px; cursor: pointer; text-decoration: underline;
+}
+
+@keyframes wFade{ from{ opacity: 0 } to{ opacity: 1 } }
+@keyframes wRise{ from{ opacity: 0; transform: translateY(10px) } to{ opacity: 1; transform: none } }
+
+@media (prefers-reduced-motion: reduce){
+  .pvbt-welcome-scrim, .pvbt-welcome-box{ animation: none }
+}

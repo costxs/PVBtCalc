@@ -17,6 +17,10 @@ export interface TourStep {
   title: string;
   body: string;
   chart?: ChartView;
+  /** alvo reserva quando o elemento só existe depois do cálculo (ou ainda está carregando) */
+  fallback?: string;
+  /** frase acrescentada ao texto enquanto o destaque está no alvo reserva */
+  fallbackNote?: string;
 }
 
 export interface TourDefinition {
