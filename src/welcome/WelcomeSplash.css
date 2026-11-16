@@ -67,13 +67,15 @@
   text-align: center;
 }
 
-/* sem movimento: a curva já aparece pronta */
+/* Animações desligadas no sistema (comum em notebook, inclusive na economia de bateria):
+   nada se desenha nem se move, mas a ordem continua — curvas, ponto, rótulo, texto —
+   só com esmaecimento. */
 @media (prefers-reduced-motion: reduce){
-  .pvbt-splash .sp-curve{ animation: none; stroke-dashoffset: 0 }
-  .pvbt-splash .sp-dot,
-  .pvbt-splash .sp-lab,
-  .pvbt-splash .sp-tick,
-  .pvbt-splash-copy,
-  .pvbt-splash-go{ animation: none; opacity: 1; transform: none }
+  .pvbt-splash .sp-curve{ stroke-dashoffset: 0; opacity: 0; animation: spFade .6s ease forwards .2s }
+  .pvbt-splash .sp-c2{ animation-delay: .5s }
+  .pvbt-splash .sp-dot{ animation: spFade .5s ease forwards 1.1s }
+  .pvbt-splash .sp-lab{ animation-delay: 1.35s }
+  .pvbt-splash-copy{ animation: spFade .6s ease forwards 1.6s }
+  .pvbt-splash-go{ animation-delay: 2.2s }
   .pvbt-splash.is-leaving{ transition: none }
 }
