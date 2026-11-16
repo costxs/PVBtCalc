@@ -62,6 +62,8 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
     setSavedSimsLoading(true);
     try {
       setSavedSims(await listSnapshotSummaries());
+    } catch (err) {
+      console.warn("[saved-simulations] falha ao listar", err);
     } finally {
       setSavedSimsLoading(false);
     }

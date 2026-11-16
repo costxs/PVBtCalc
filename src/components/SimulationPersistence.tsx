@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../redux/store";
 import { groupSimulations } from "../tools/exportSimulations";
-import { upsertSnapshot, listSnapshotSummaries, getSnapshot } from "../tools/simulationStoreIO";
+import { upsertSnapshot, listSnapshotSummaries, getSnapshot, migrateLocalSnapshots } from "../tools/simulationStoreIO";
 import { openSnapshotIntoRedux } from "../tools/simulationRestore";
 
 export default function SimulationPersistence() {
@@ -49,8 +49,10 @@ export default function SimulationPersistence() {
   }, [radialState.skinEvolutionData, radialState.lastRunSetup]);
 
   useEffect(() => {
-    if (radialState.curves.length > 0) return;
     (async () => {
+      // simulações da versão antiga, guardadas só neste navegador, sobem para a conta
+      await migrateLocalSnapshots().catch((err) => console.warn("[simulation-persistence] falha ao migrar", err));
+      if (radialState.curves.length > 0) return;
       const summaries = await listSnapshotSummaries();
       const latestRadial = summaries.find((s) => s.flowRegime === "radial");
       if (!latestRadial) return;

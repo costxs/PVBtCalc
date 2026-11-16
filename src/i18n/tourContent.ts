@@ -4,7 +4,7 @@
  * Por enquanto o tour aparece em português nos dois idiomas da interface. Depois da
  * revisão, os textos vão para en.ts/pt.ts com as chaves tour.<trilha>.<id>.title/body.
  *
- * Base: pvbtcalc-tour/src/tour/tourSteps.ts (manual v3 + ALI & ZIAUDDIN, 2019),
+ * Base: pvbtcalc-tour/src/tour/tourSteps.ts (manual v3 + ALI & ZIAUDDIN, 2020),
  * conferida contra a interface atual. Os nomes entre aspas são os rótulos da tela em
  * português. `anchor` casa com data-tour / data-tour-alt nos componentes.
  */
@@ -392,9 +392,9 @@ const exportTour: TourDefinition = {
       anchor: "exp.saved",
       title: "Simulações Salvas",
       body:
-        "Cópia guardada neste navegador, que sobrevive ao recarregar a página. \"Abrir\" " +
-        "restaura a simulação; também dá para renomear e excluir. Esses dados não vão para " +
-        "outro computador.",
+        "Ficam salvas na sua conta, até 10, e aparecem em qualquer computador em que você " +
+        "entrar. Ao salvar a 11ª, a mais antiga sai e um aviso aparece. \"Abrir\" restaura a " +
+        "simulação; também dá para renomear e excluir.",
     },
     {
       id: "selectAll",
