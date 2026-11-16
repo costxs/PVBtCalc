@@ -1209,6 +1209,15 @@ const ChartComponent = () => {
     }
   }, [skinEvolutionData, visibleChart, skinActiveFlowrates, xdefinedLimit, ydefinedLimit, xLimit, yLimit, t, lang]);
 
+  // data-tour da área de desenho (tour guiado), por regime e aba aberta
+  const CHART_ANCHORS: Record<string, string> = {
+    'linear:A': 'lin.chart',
+    'radial:A': 'rad.chartSim',
+    'radial:B': 'rad.chartAnalysis',
+    'radial:skin': 'rad.chartSkin',
+  };
+  const chartAnchor = CHART_ANCHORS[`${flowRegime}:${visibleChart}`];
+
   const optionsList = useMemo(() => {
     return flowRegime === 'radial'
       ? [
@@ -1227,7 +1236,7 @@ const ChartComponent = () => {
     <section ref={wrapperRef} className="blueprint" style={{ padding: '14px 16px 16px', background: '#fff', scrollMarginTop: '70px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <LayoutGroup>
-          <div className="seg" style={{ display: 'flex', position: 'relative' }}>
+          <div className="seg" data-tour="lin.chartTabs" data-tour-alt="rad.chartTabs" style={{ display: 'flex', position: 'relative' }}>
             {optionsList.map((opt) => (
               <motion.label
                 key={opt.id}
@@ -1264,7 +1273,7 @@ const ChartComponent = () => {
         </LayoutGroup>
         <span style={{ flex: 1 }}></span>
         {flowRegime === 'radial' && (
-          <div style={{ display: 'flex', gap: '6px', marginRight: '16px' }}>
+          <div data-tour="rad.chartTabs" style={{ display: 'flex', gap: '6px', marginRight: '16px' }}>
             <button className="btn" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => {
               import('../tools/export').then(exp => {
                 if (visibleChart === 'A') {
@@ -1280,6 +1289,7 @@ const ChartComponent = () => {
             }}>{t('chart.export_data')}</button>
           </div>
         )}
+        <div data-tour="lin.chartOpts" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         {flowRegime === 'linear' && (
           <>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer' }}>
@@ -1300,6 +1310,7 @@ const ChartComponent = () => {
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#666' }} title={t("chart.the_gray_hatched_region_with")}>
           <span style={{ display: 'inline-block', width: '14px', height: '12px', background: 'rgba(97,97,97,0.15)', borderLeft: '2px solid #616161' }}></span>
           {t("chart.outside_validated_window")}
+        </div>
         </div>
       </div>
 
@@ -1352,7 +1363,7 @@ const ChartComponent = () => {
       </div>
 
       {visibleChart === 'A' && flowRegime === 'radial' && radialProcessed && radialValidity.worst && (
-        <div role="alert" style={{
+        <div role="alert" data-tour="rad.banner" style={{
           margin: '0 2px 10px', padding: '9px 12px', fontSize: '12px', lineHeight: 1.5,
           border: `1px solid ${SEVERITY_COLORS.warn}`, borderLeft: `4px solid ${SEVERITY_COLORS.warn}`,
           borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12',
@@ -1362,7 +1373,7 @@ const ChartComponent = () => {
       )}
 
       {visibleChart === 'A' && flowRegime === 'linear' && linearValidity.worst && (
-        <div role="alert" style={{
+        <div role="alert" data-tour="lin.banner" style={{
           margin: '0 2px 10px', padding: '9px 12px', fontSize: '12px', lineHeight: 1.5,
           border: `1px solid ${SEVERITY_COLORS.warn}`, borderLeft: `4px solid ${SEVERITY_COLORS.warn}`,
           borderRadius: '6px', background: '#fdf5ea', color: '#7a4a12',
@@ -1398,7 +1409,7 @@ const ChartComponent = () => {
       )}
 
       {visibleChart === 'design' && flowRegime === 'radial' && !!designPlotData?.series?.length && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '0 2px 12px', padding: '10px 14px', border: '1px solid #ddd', borderRadius: '6px' }}>
+        <div data-tour="rad.designLegend" style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '0 2px 12px', padding: '10px 14px', border: '1px solid #ddd', borderRadius: '6px' }}>
           <ChipRow
             legendLabel={t("chart.temperatures")}
             items={designPlotData.series.map((s: any, idx: number) => ({
@@ -1463,7 +1474,7 @@ const ChartComponent = () => {
         </div>
       )}
 
-      <div ref={containerRef} style={{ width: '100%', height: visibleChart === 'design' ? '70vh' : '520px', minHeight: visibleChart === 'design' ? '600px' : 'auto', position: 'relative' }}>
+      <div ref={containerRef} data-tour={chartAnchor} style={{ width: '100%', height: visibleChart === 'design' ? '70vh' : '520px', minHeight: visibleChart === 'design' ? '600px' : 'auto', position: 'relative' }}>
         <AnimatePresence mode="wait">
           {visibleChart === 'A' && (
             <motion.div

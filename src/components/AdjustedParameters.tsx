@@ -17,7 +17,7 @@ export default function AdjustedParametersCard() {
   const getLegen = (key: string) => (LEGEND_KEYS[key] ? t(LEGEND_KEYS[key]) : '');
 
   return (
-    <section className="blueprint" style={{ padding: '18px 20px 20px' }}>
+    <section className="blueprint" data-tour="lin.params" style={{ padding: '18px 20px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
         <span className="secnum">02</span>
         <div className="seg">

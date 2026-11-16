@@ -43,6 +43,8 @@ const ASSIGN_TARGETS = new Set([...USER_PROPS, "minimum", "maximum"]);
 export const EXEMPT_PATHS = [
   /(^|\/)i18n\//,
   /SobreOModelo\/content\.(pt|en)\.tsx$/,
+  // guided-tour step text (Portuguese-only first draft, see the file header)
+  /(^|\/)tourContent\.ts$/,
   /components\/footerContent\.ts$/,
   // the exported workbook's text: fixed English constants, pinned to shared-fixtures/export_text.json
   /tools\/exportText\.ts$/,

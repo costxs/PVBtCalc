@@ -58,7 +58,7 @@ export default function DesignPlotReader({ series, onReadingChange }: DesignPlot
   }, [reading, mode, target, temperatureK, onReadingChange]);
 
   return (
-    <div style={{
+    <div data-tour="rad.readFrom" style={{
       margin: "0 2px 12px", padding: "10px 14px", border: "1px solid #ddd", borderRadius: "6px",
       display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", fontSize: "12.5px",
     }}>

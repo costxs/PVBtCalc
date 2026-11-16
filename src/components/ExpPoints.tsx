@@ -112,7 +112,7 @@ export default function ExpSection() {
   ]);
 
   return (
-    <section className="blueprint" style={{ padding: '18px 20px 20px', borderRadius: '9px' }}>
+    <section className="blueprint" data-tour="lin.expCurves" style={{ padding: '18px 20px 20px', borderRadius: '9px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '14px' }}>
         <span className="secnum">03</span>
         <h5 style={{ margin: 0, fontSize: '18px', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{t('exp.title')}</h5>

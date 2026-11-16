@@ -10,6 +10,7 @@ import {
 import { exportRadialWorkbookServer, exportRadialFiguresServer, type FigureSize } from "../tools/exportRadialServer";
 import { exportCurveAsVerticalTable } from "../tools/export";
 import { exportLinearWorkbookServer } from "../tools/exportLinearServer";
+import { useTour } from "../tour/tourContext";
 import { hasDirectoryPickerSupport, pickDirectory, getOrCreateSubdirectory } from "../tools/directoryExport";
 import {
   listSnapshotSummaries, getSnapshot, deleteSnapshot, deleteAllSnapshots, renameSnapshot,
@@ -119,6 +120,11 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
   };
 
   const groups = useMemo(() => groupSimulations(curves as any), [curves]);
+
+  // Tour da aba Export: abre sozinho na primeira visita em que já há algo para exportar.
+  const { maybeStart } = useTour();
+  const hasGroups = groups.length > 0;
+  useEffect(() => { if (hasGroups) maybeStart("export"); }, [hasGroups, maybeStart]);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [fmtWorkbook, setFmtWorkbook] = useState(true);
@@ -275,7 +281,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
         <span style={{ flex: 1, height: "1px", background: "var(--color-divider)" }}></span>
       </div>
 
-      <div style={{ marginBottom: "30px" }}>
+      <div data-tour="exp.saved" style={{ marginBottom: "30px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
           <h3 style={{ margin: 0, fontSize: "15px", letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--color-accent-900)" }}>
             {t("export.saved_simulations")}
@@ -370,14 +376,14 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
             <h3 style={{ margin: "0 0 8px", fontSize: "15px", letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--color-accent-900)" }}>
               {t("export.export_this_session")}
             </h3>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+            <div data-tour="exp.selectAll" style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
               <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", cursor: "pointer", fontWeight: 600 }}>
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} />
                 {t(groups.length === 1 ? "export.select_all_one" : "export.select_all_many", { count: groups.length })}
               </label>
             </div>
 
-            <div style={{ border: "1px solid var(--color-divider)", borderRadius: "8px", overflow: "hidden" }}>
+            <div data-tour="exp.table" style={{ border: "1px solid var(--color-divider)", borderRadius: "8px", overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                 <thead>
                   <tr style={{ background: "var(--color-accent-900)", color: "#fff", textAlign: "left" }}>
@@ -423,7 +429,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "22px", padding: "16px", border: "1px solid var(--color-divider)", borderRadius: "8px" }}>
+          <div data-tour="exp.formats" style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "22px", padding: "16px", border: "1px solid var(--color-divider)", borderRadius: "8px" }}>
             <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-accent-900)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("export.formats")}</div>
 
             <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", cursor: "pointer" }}>
@@ -453,12 +459,12 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
               {formatLabel("tablesOnly")} — {t("export.lighter_file")}
             </label>
 
-            <div style={{ fontSize: "11.5px", color: "var(--color-neutral-600)", marginTop: "2px" }}>
+            <div data-tour="exp.limits" style={{ fontSize: "11.5px", color: "var(--color-neutral-600)", marginTop: "2px" }}>
               {t("export.linear_note", { workbook: formatLabel("workbook"), tablesOnly: formatLabel("tablesOnly") })}
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "22px", flexWrap: "wrap" }}>
+          <div data-tour="exp.folder" style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "22px", flexWrap: "wrap" }}>
             {dirSupported ? (
               <>
                 <button className="btn" style={{ fontSize: "12.5px", padding: "6px 12px" }} onClick={handlePickDirectory}>
@@ -475,7 +481,7 @@ export default function ExportTab({ onGoToRunner }: ExportTabProps) {
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
+          <div data-tour="exp.button" style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
             <button className="btn btn-green" style={{ fontSize: "13px", padding: "9px 20px", borderRadius: "9px" }} disabled={!canExport} onClick={handleExport}>
               {exporting ? (t("export.exporting")) : (t("export.export"))}
             </button>

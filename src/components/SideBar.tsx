@@ -5,6 +5,7 @@ import { setLanguage } from "../redux/ui/slice";
 import { logout } from "../redux/user/slice";
 import { AppDispatch, RootState } from "../redux/store";
 import FeedbackModal from "./FeedbackModal";
+import { useTour } from "../tour/tourContext";
 
 interface SidebarProps {
   currentTab: string;
@@ -17,6 +18,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
 
   const dispatch = useDispatch<AppDispatch>();
   const { username, profile } = useSelector((state: RootState) => state.user);
+  const flowRegime = useSelector((state: RootState) => state.radial.flowRegime);
+  const { startTour, active: tourActive } = useTour();
+  // o botão abre a trilha da tela atual; fora do Runner/Export, a do regime escolhido
+  const startTourHere = () => {
+    if (tourActive) return;
+    startTour(currentTab === 'export' ? 'export' : flowRegime === 'radial' ? 'radial' : 'linear');
+  };
 
   const toggleLanguage = () => dispatch(setLanguage(lang === 'pt' ? 'en' : 'pt'));
   const handleLogout = () => {
@@ -25,7 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
 
   return (
     <>
-      <aside style={{ background: 'var(--color-accent-900)', color: '#eef1f4', display: 'flex', flexDirection: 'column', padding: '22px 18px 18px' }}>
+      <aside data-tour="nav" style={{ background: 'var(--color-accent-900)', color: '#eef1f4', display: 'flex', flexDirection: 'column', padding: '22px 18px 18px' }}>
         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '30px', letterSpacing: '-0.01em', lineHeight: 1 }}>
           PVBt<span style={{ color: 'var(--color-accent-400)' }}>Calc</span>
         </div>
@@ -41,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2v7.31"></path><path d="M14 9.3V1.99"></path><path d="M8.5 2h7"></path><path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path><path d="M5.58 16.5h12.85"></path></svg>
             {t('side.runner')}
           </a>
-          <a href="#export" onClick={(e) => { e.preventDefault(); setCurrentTab('export'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', textDecoration: 'none', color: currentTab === 'export' ? '#fff' : 'rgba(238, 241, 244, 0.72)', background: currentTab === 'export' ? 'rgba(148, 188, 227, 0.16)' : 'transparent', borderLeft: `2px solid ${currentTab === 'export' ? 'var(--color-accent-400)' : 'transparent'}`, fontFamily: 'var(--font-heading)', fontSize: '15px', letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer' }}>
+          <a href="#export" data-tour="nav.export" onClick={(e) => { e.preventDefault(); setCurrentTab('export'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', textDecoration: 'none', color: currentTab === 'export' ? '#fff' : 'rgba(238, 241, 244, 0.72)', background: currentTab === 'export' ? 'rgba(148, 188, 227, 0.16)' : 'transparent', borderLeft: `2px solid ${currentTab === 'export' ? 'var(--color-accent-400)' : 'transparent'}`, fontFamily: 'var(--font-heading)', fontSize: '15px', letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v5h6"></path><path d="M12 18v-6"></path><path d="m9 15 3 3 3-3"></path></svg>
             {t('common.export')}
           </a>
@@ -56,6 +64,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             {t("sidebar.feedback")}
+          </button>
+          <button
+            type="button"
+            onClick={startTourHere}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', border: 'none', background: 'transparent', borderLeft: '2px solid transparent', color: 'rgba(238, 241, 244, 0.72)', fontFamily: 'var(--font-heading)', fontSize: '15px', letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+            {t("tour.button")}
           </button>
           <button
             type="button"

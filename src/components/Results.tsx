@@ -113,7 +113,7 @@ export default function ResultTab() {
       </div>
 
       {isCurveTab && (
-        <div className="flex flex-col xl:grid xl:grid-cols-2 gap-[22px] items-start">
+        <div data-tour="lin.savedRun" className="flex flex-col xl:grid xl:grid-cols-2 gap-[22px] items-start">
           <div>
             <div className="field" style={{ marginBottom: '10px' }}>
               <label>{t('results.saved_run')}</label>

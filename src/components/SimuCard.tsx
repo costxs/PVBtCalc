@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../redux/store";
+import { RootState, type AppDispatch } from "../redux/store";
 import { setParameter, resetParameter, setGeometry } from "../redux/setup/slice";
 import { fetchCurve, setId, setSystem, setOthers } from "../redux/results/slice";
 import { addCurve } from "../redux/storageresults/slice";
@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import {
   fetchRadialCurve,
   fetchSkinEvolution,
-  setFlowRegime,
   setRadialGeometry,
   setTargetMode,
   addTarget,
@@ -24,6 +23,7 @@ import {
   type TargetMode,
 } from "../redux/radial/slice";
 import { setVisibleChart } from "../redux/ui/slice";
+import { switchFlowRegime } from "../redux/radial/switchFlowRegime";
 import { computeBeta, formatTargets, parseTargetInput } from "../redux/radial/targetConversion";
 import { fmtBblMin } from "../tools/validityWindow";
 import { parseDecimal } from "../tools/parseDecimal";
@@ -33,9 +33,6 @@ import { useT, type TKey, type TParams } from "../i18n";
 import NumberInput from "./NumberInput";
 
 type FieldError = { key: TKey; params?: TParams } | null;
-
-const LINEAR_FLOWRATE_DEFAULTS = { min: 0.5, max: 10 };
-const RADIAL_FLOWRATE_DEFAULTS = { min: 0.1, max: 5 };
 
 export default function SimuSetupCard() {
   const { t } = useT();
@@ -64,6 +61,7 @@ export default function SimuSetupCard() {
     computedTargetKey === currentTargetKey;
 
   const dispatch = useDispatch()
+  const appDispatch = useDispatch<AppDispatch>()
   const { ids } = useSelector((state: RootState) => state.resultCurves)
   const [newTarget, setNewTarget] = useState('');
   const [targetError, setTargetError] = useState<FieldError>(null);
@@ -110,22 +108,7 @@ export default function SimuSetupCard() {
   };
 
   const handleFlowRegimeChange = (regime: 'linear' | 'radial') => {
-    dispatch(setFlowRegime(regime));
-    if (regime === 'radial') {
-      dispatch(setVisibleChart('A'));
-      if (Number(fflowrate) === LINEAR_FLOWRATE_DEFAULTS.min && Number(iflowrate) === LINEAR_FLOWRATE_DEFAULTS.max) {
-        dispatch(setParameter({ key: 'minimum_flowrate', value: RADIAL_FLOWRATE_DEFAULTS.min }));
-        dispatch(setParameter({ key: 'flowrate', value: RADIAL_FLOWRATE_DEFAULTS.max }));
-      }
-    } else if (regime === 'linear') {
-      if (visibleChart === 'design' || visibleChart === 'skin') {
-        dispatch(setVisibleChart('A'));
-      }
-      if (Number(fflowrate) === RADIAL_FLOWRATE_DEFAULTS.min && Number(iflowrate) === RADIAL_FLOWRATE_DEFAULTS.max) {
-        dispatch(setParameter({ key: 'minimum_flowrate', value: LINEAR_FLOWRATE_DEFAULTS.min }));
-        dispatch(setParameter({ key: 'flowrate', value: LINEAR_FLOWRATE_DEFAULTS.max }));
-      }
-    }
+    appDispatch(switchFlowRegime(regime));
   };
 
   const handleRadialGeometry = (patch: Partial<{ wellboreSize: number; wellboreSizeMode: WellboreSizeMode; payzoneThickness: number; drainageRadius: number | null }>) => {
@@ -253,7 +236,7 @@ export default function SimuSetupCard() {
           <span style={{ flex: 1, height: '1px', background: 'var(--color-divider)' }}></span>
         </div>
 
-        <div className="seg" style={{ marginBottom: '16px' }}>
+        <div className="seg" data-tour="lin.regime" data-tour-alt="rad.regime" style={{ marginBottom: '16px' }}>
           <label className="seg-opt"><input type="radio" name="flow-regime" value="linear" checked={flowRegime === 'linear'} onChange={() => handleFlowRegimeChange('linear')} />{t('run.regime_linear')}</label>
           <label className="seg-opt"><input type="radio" name="flow-regime" value="radial" checked={flowRegime === 'radial'} onChange={() => handleFlowRegimeChange('radial')} />{t('run.regime_radial')}</label>
         </div>
@@ -264,12 +247,12 @@ export default function SimuSetupCard() {
           </figure>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-[12px_14px]">
-            <div className="field" style={{ gridColumn: 'span 3' }}>
+            <div className="field" data-tour="lin.simId" style={{ gridColumn: 'span 3' }}>
               <label>{t('run.simulation_id')}</label>
               <input className="input" placeholder="1" value={id} onChange={(e) => dispatch(setParameter({ key: 'id', value: e.target.value }))} style={{ borderColor: isIdUsed ? '#c0392b' : undefined }} />
               {isIdUsed && <div style={{ color: '#c0392b', fontSize: '11.5px', marginTop: '4px' }}>{t('run.id_exists', { id })}</div>}
             </div>
-            <div className="field" style={{ gridColumn: 'span 2' }}>
+            <div className="field" data-tour="lin.rock" data-tour-alt="rad.rock" style={{ gridColumn: 'span 2' }}>
               <label>{t('run.rock_type')}</label>
               <select className="input" value={rock_type} onChange={(e) => dispatch(setGeometry({ rock: e.target.value, length: core_length, diameter: core_diameter, porosity: core_porosity }))}>
                 <option value="Indiana Limestone">Indiana Limestone</option>
@@ -280,24 +263,24 @@ export default function SimuSetupCard() {
                 <option value="Winterest Limestone">Winterest Limestone</option>
               </select>
             </div>
-            <div className="field">
+            <div className="field" data-tour="lin.rock" data-tour-alt="rad.rock">
               <label>{t('run.core_porosity')} <span className="text-muted">{t('run.unit_fraction')}</span></label>
               <NumberInput className="input" value={core_porosity} onChange={(v) => dispatch(setGeometry({ rock: rock_type, length: core_length, diameter: core_diameter, porosity: v ?? 0 }))} />
             </div>
             {flowRegime === 'linear' ? (
               <>
-                <div className="field">
+                <div className="field" data-tour="lin.core">
                   <label>{t('run.core_length')} <span className="text-muted">(in)</span></label>
                   <NumberInput className="input" value={core_length} onChange={(v) => dispatch(setGeometry({ rock: rock_type, length: v ?? 0, diameter: core_diameter, porosity: core_porosity }))} />
                 </div>
-                <div className="field">
+                <div className="field" data-tour="lin.core">
                   <label>{t('run.core_diameter')} <span className="text-muted">(in)</span></label>
                   <NumberInput className="input" value={core_diameter} onChange={(v) => dispatch(setGeometry({ rock: rock_type, length: core_length, diameter: v ?? 0, porosity: core_porosity }))} />
                 </div>
               </>
             ) : (
               <>
-                <div className="field" style={{ gridColumn: 'span 2' }}>
+                <div className="field" data-tour="rad.geom" style={{ gridColumn: 'span 2' }}>
                   <label>{t('run.wellbore_size')} <span className="text-muted">(in)</span></label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 96px', gap: '6px' }}>
                     <NumberInput className="input" style={{ minWidth: 0 }} value={wellboreSize} onChange={(v) => handleRadialGeometry({ wellboreSize: v ?? 0 })} />
@@ -307,13 +290,13 @@ export default function SimuSetupCard() {
                     </select>
                   </div>
                 </div>
-                <div className="field">
+                <div className="field" data-tour="rad.geom">
                   <label>{t('run.payzone_thickness')} <span className="text-muted">(ft)</span></label>
                   <NumberInput className="input" value={payzoneThickness} onChange={(v) => handleRadialGeometry({ payzoneThickness: v ?? 0 })} />
                 </div>
               </>
             )}
-            <div className="field">
+            <div className="field" data-tour="lin.core" data-tour-alt="rad.acid">
               <label>{t('run.system_temperature')} <span className="text-muted">(°C)</span></label>
               {flowRegime === 'radial' ? (
                 <>
@@ -329,7 +312,7 @@ export default function SimuSetupCard() {
                 <NumberInput className="input" value={temperature} onChange={(v) => handleParam({ key: 'temperature', value: v ?? 0 })} />
               )}
             </div>
-            <div className="field" style={{ gridColumn: 'span 2' }}>
+            <div className="field" data-tour="lin.acid" data-tour-alt="rad.acid" style={{ gridColumn: 'span 2' }}>
               <label>{t('run.acid_system')}</label>
               <select className="input" value={acidType} onChange={(e) => handleParam({ key: 'acid_type', value: e.target.value })}>
                 <option value="HCl">{t('run.acid_hcl')}</option>
@@ -337,13 +320,13 @@ export default function SimuSetupCard() {
                 <option value="HCl Emulsified">{t('run.acid_hcl_emulsified')}</option>
               </select>
             </div>
-            <div className="field">
+            <div className="field" data-tour="lin.acid" data-tour-alt="rad.acid">
               <label>{t('run.acid_concentration')} <span className="text-muted">(w/w)</span></label>
               <NumberInput className="input" value={aConcentration} onChange={(v) => handleParam({ key: 'acid_concentration', value: v ?? 0 })} />
             </div>
 
             {flowRegime === 'radial' && (
-              <div style={{ gridColumn: 'span 3' }}>
+              <div data-tour="rad.advanced" style={{ gridColumn: 'span 3' }}>
                 <details>
                   <summary className="text-muted" style={{ cursor: 'pointer', fontSize: '12.5px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{t('run.advanced')}</summary>
                   <div className="field" style={{ marginTop: '10px', maxWidth: '260px' }}>
@@ -359,10 +342,11 @@ export default function SimuSetupCard() {
 
             {flowRegime === 'radial' && (
               <div className="field" style={{ gridColumn: 'span 3' }}>
-                <div className="seg" style={{ marginBottom: '10px' }}>
+                <div className="seg" data-tour="rad.mode" style={{ marginBottom: '10px' }}>
                   <label className="seg-opt"><input type="radio" name="target-mode" value="length" checked={targetMode === 'length'} onChange={() => handleTargetMode('length')} />{t('run.target_length')}</label>
                   <label className="seg-opt"><input type="radio" name="target-mode" value="skin" checked={targetMode === 'skin'} onChange={() => handleTargetMode('skin')} />{t('run.target_skin')}</label>
                 </div>
+                <div data-tour="rad.targets">
                 <label>{t('run.targets')} <span className="text-muted">{targetMode === 'length' ? '(ft)' : t('run.unit_dimensionless')}</span></label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '6px' }}>
                   {targetChips.map((chip, i) => (
@@ -379,6 +363,7 @@ export default function SimuSetupCard() {
                   )}
                 </div>
                 {targetError && <p style={{ color: '#c0392b', fontSize: '11.5px', margin: '6px 0 0' }}>{t(targetError.key, targetError.params)}</p>}
+                </div>
               </div>
             )}
           </div>
@@ -386,7 +371,7 @@ export default function SimuSetupCard() {
 
         {visibleChart !== 'skin' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-[14px_20px] mt-[16px] pt-[16px] border-t border-[var(--color-divider)]">
-            <div className="field">
+            <div className="field" data-tour="lin.sweep" data-tour-alt="rad.sweep">
               <label>{t('run.flowrate_sweep')} <span className="text-muted">({flowRegime === 'radial' ? 'bbl/min' : 'cm³/min'})</span></label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 14px 1fr', gap: '6px', alignItems: 'center' }}>
                 <NumberInput className="input" value={fflowrate} onChange={(v) => dispatch(setParameter({ key: 'minimum_flowrate', value: v === null ? '' : String(v) }))} />
@@ -401,7 +386,7 @@ export default function SimuSetupCard() {
                 </div>
               )}
               {validityBlockFresh && (
-                <div style={{ marginTop: '8px', fontSize: '11.5px', lineHeight: 1.5 }}>
+                <div data-tour="rad.window" style={{ marginTop: '8px', fontSize: '11.5px', lineHeight: 1.5 }}>
                   <span className="text-muted">{t('run.window_per_target')}</span>
                   <ul style={{ margin: '3px 0 0', paddingLeft: '16px' }}>
                     {radialState.curves.map((c, i) => (
@@ -428,12 +413,12 @@ export default function SimuSetupCard() {
                 </div>
               )}
             </div>
-            <div className="field">
+            <div className="field" data-tour="lin.sweep" data-tour-alt="rad.sweep">
               <label>{t('run.number_of_steps')} <span style={{ color: 'var(--color-accent-700)', fontWeight: 500 }}>{step_numbers}</span></label>
               <input type="range" min="10" max="200" step="5" style={{ width: '100%', height: '36px' }} value={step_numbers} onChange={(e) => dispatch(setParameter({ key: 'step_numbers', value: e.target.value }))} />
             </div>
             {visibleChart === 'design' && (
-              <div className="field" style={{ gridColumn: 'span 2' }}>
+              <div className="field" data-tour="rad.tempsCompare" style={{ gridColumn: 'span 2' }}>
                 <label>{t('run.temperatures_to_compare')} <span className="text-muted">(°C)</span></label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '6px' }}>
                   {designTemperatures.map((temp, i) => (
@@ -455,7 +440,7 @@ export default function SimuSetupCard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-[14px_20px] mt-[16px] pt-[16px] border-t border-[var(--color-divider)]">
-            <div className="field" style={{ gridColumn: 'span 1' }}>
+            <div className="field" data-tour="rad.flowsCompare" style={{ gridColumn: 'span 1' }}>
               <label>{t('run.flowrates_to_compare')} <span className="text-muted">(bbl/min)</span></label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '6px' }}>
                 {skinFlowrates.map((flowrate, i) => (
@@ -476,7 +461,7 @@ export default function SimuSetupCard() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+        <div data-tour="lin.calc" data-tour-alt="rad.calc" style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
           <button className="btn btn-green" disabled={!canCalculate || radialAlreadyCalculated} style={{ letterSpacing: '0.06em', textTransform: 'uppercase', padding: '9px 20px', borderRadius: '9px', backgroundColor: radialAlreadyCalculated ? '#7a8580' : canCalculate ? '#268045' : '#3f7d55', cursor: radialAlreadyCalculated ? 'not-allowed' : undefined }} onClick={handleCurve}>
             {radialAlreadyCalculated ? t('run.calculated') : t('run.calculate')}
           </button>

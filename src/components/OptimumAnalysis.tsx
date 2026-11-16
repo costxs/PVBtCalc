@@ -86,7 +86,7 @@ export default function OptimalAnalysis() {
   const rMax = parseDecimal(radialMax)
 
   return (
-    <section className="blueprint" style={{ padding: '18px 20px 20px' }}>
+    <section className="blueprint" data-tour="lin.optAnalysis" data-tour-alt="rad.optAnalysis" style={{ padding: '18px 20px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '14px' }}>
         <span className="secnum">04</span>
         <h5 style={{ margin: 0, fontSize: '18px', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{t('opt.title')}</h5>
